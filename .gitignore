@@ -1,0 +1,14 @@
+bin
+experiments/experiments
+cmd/client/client
+cmd/server/server
+cmd/accuracy/main
+.vscode
+*CMakeCache.txt
+*CMakeFiles
+*Makefile
+*.a
+*/bin/*
+*.cmake
+*.json
+*.pdf
