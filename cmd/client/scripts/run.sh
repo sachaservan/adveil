@@ -78,13 +78,10 @@ BrokerPort=${PORT}
 ExperimentNumTrials=${TRIALS}
 ExperimentSaveFile="../../results/experiment${RANDOM}.json"
 
-
-echo 'Broker addr: ' ${HOST}':'${PORT}
-echo 'Num trials:  ' ${ExperimentNumTrials}
-echo 'Flags:       ' ${boolargs[@]}
-echo 'Saving result to ' ${ExperimentSaveFile}
-
-
+echo 'Broker IP addr: ' ${HOST}':'${PORT}
+echo 'Num trials:     ' ${ExperimentNumTrials}
+echo 'Flags:          ' ${boolargs[@]}
+echo 'Saving to       ' ${ExperimentSaveFile}
 
 # run the experiemnts with the specified parameters 
 ./client \
