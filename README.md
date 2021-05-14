@@ -43,10 +43,5 @@ make
 
 ## Issues with running on MacOS
 While the code has been tested on MacOS (Big Sur), there is a bug in the cgo interface. 
-On Linux, ```uint64_t``` is cast as ```C.ulong``` in the Go code which *does not work on Mac* (I don't know why). 
-~~To compile on Mac, change all ```C.ulong``` to ```C.ulonglong``` in ```adveil/cmd/sealpir.go```. ~~
+On Linux, ```uint64_t``` is cast as ```C.ulong``` in the Go code which *does not work on Mac* (seems to be a bug?)
 The compiler will handle switching between two instances of ```sealpir.go``` to work around this issue. 
-
-
-## Running the client behind a Tor proxy
-[this tutorial](https://www.linuxuprising.com/2018/10/how-to-install-and-use-tor-as-proxy-in.html) 
