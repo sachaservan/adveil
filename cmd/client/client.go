@@ -10,7 +10,6 @@ import (
 	"log"
 	"net/rpc"
 	"sync"
-	"time"
 
 	"github.com/sachaservan/vec"
 )
@@ -25,7 +24,6 @@ type RuntimeExperiment struct {
 	GetBucketServerMS       []int64 `json:"get_bucket_server_ms"`
 	GetBucketClientMS       []int64 `json:"get_bucket_client_ms"`
 	GetBucketBandwidthB     []int64 `json:"get_bucket_bandwidth_bytes"`
-	GetBucketNetworkTime    []int64 `json:"get_bucket_network_time"`
 	GetAdServerMS           []int64 `json:"get_ad_server_ms"`
 	GetAdClientMS           []int64 `json:"get_ad_client_ms"`
 	GetAdBandwidthB         []int64 `json:"get_ad_bandwidth_bytes"`
@@ -123,12 +121,12 @@ func (client *Client) InitSession() {
 	client.adPIRKeys = adC.GenGaloisKeys()
 	client.adPIRClient = adC
 
-	// TODO: don't manually copy these?
 	client.sessionParams = &api.SessionParameters{
-		SessionID:   res.SessionID,
-		NumFeatures: res.NumFeatures,
-		NumTables:   res.NumTables,
-		NumAds:      res.NumAds,
+		SessionID:         res.SessionID,
+		NumFeatures:       res.NumFeatures,
+		NumTables:         res.NumTables,
+		NumAds:            res.NumAds,
+		IDtoVecRedundancy: res.IDtoVecRedundancy,
 	}
 
 	// TODO: this is kind of a hack that is only ok for experiments
@@ -218,12 +216,12 @@ func (client *Client) QueryAd(index int64) ([]byte, int64, int64) {
 // QueryBuckets privately queries LSH tables held by the server
 // by first hashing the client's profile vector and then retrieving the corresponding
 // hash from the hash table
-func (client *Client) QueryBuckets() ([][]int, int64, int64, int64) {
+func (client *Client) QueryBuckets() ([][]int, int64, int64) {
 
-	args := &api.BucketQueryArgs{}
-	res := &api.BucketQueryResponse{}
+	qargs := &api.BucketQueryArgs{}
+	qres := &api.BucketQueryResponse{}
 
-	args.Queries = make([]*sealpir.Query, 0)
+	qargs.Queries = make([]*sealpir.Query, 0)
 	// query each hash table for the bucket that collides with the
 	// client's profile feature vector under the server-provided LSH function
 	for tableIndex := 0; tableIndex < client.sessionParams.NumTables; tableIndex++ {
@@ -235,11 +233,10 @@ func (client *Client) QueryBuckets() ([][]int, int64, int64, int64) {
 		index := c.GetFVIndex(elemIndex)
 		query := c.GenQuery(index)
 
-		args.Queries = append(args.Queries, query)
+		qargs.Queries = append(qargs.Queries, query)
 	}
 
-	rpcStartClient := time.Now().Unix()
-	if !client.call("Server.PrivateBucketQuery", &args, &res) {
+	if !client.call("Server.PrivateBucketQuery", &qargs, &qres) {
 		panic("failed to make RPC call")
 	}
 
@@ -252,14 +249,33 @@ func (client *Client) QueryBuckets() ([][]int, int64, int64, int64) {
 
 		c := client.tablePIRClients[tableIndex]
 		offset := c.GetFVOffset(elemIndex)
-		c.Recover(res.Answers[tableIndex][0], offset)
+		c.Recover(qres.Answers[tableIndex][0], offset)
 	}
 
-	bandwidth := getSizeInBytes(args) + getSizeInBytes(res)
-	serverMS := res.StatsTotalTimeInMS
-	network := time.Unix(res.StartsStartTime, 0).Sub(time.Unix(rpcStartClient, 0)).Milliseconds()
+	margs := &api.MappingQueryArgs{}
+	mres := &api.MappingQueryResponse{}
 
-	return nil, serverMS, bandwidth, network
+	for i := 0; i < client.sessionParams.IDtoVecRedundancy; i++ {
+		c := client.idToVecPIRClients[i]
+		index := c.GetFVIndex(0)
+		query := c.GenQuery(index)
+		margs.Queries = append(margs.Queries, query)
+	}
+
+	if !client.call("Server.PrivateMappingQuery", &margs, &mres) {
+		panic("failed to make RPC call")
+	}
+
+	for i := 0; i < client.sessionParams.IDtoVecRedundancy; i++ {
+		c := client.idToVecPIRClients[i]
+		offset := c.GetFVOffset(0) // retrieve
+		c.Recover(mres.Answers[i][0], offset)
+	}
+
+	bandwidth := getSizeInBytes(qargs) + getSizeInBytes(qres) + getSizeInBytes(margs) + getSizeInBytes(mres)
+	serverMS := qres.StatsTotalTimeInMS + mres.StatsTotalTimeInMS
+
+	return nil, serverMS, bandwidth
 }
 
 func getSizeInBytes(s interface{}) int64 {

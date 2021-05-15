@@ -49,6 +49,7 @@ func (server *Server) InitSession(args api.InitSessionArgs, reply *api.InitSessi
 		reply.TablePIRParams = sealpir.SerializeParamsList(server.TableParams)
 		reply.TableHashFunctions = server.Knn.Hashes
 		reply.IDtoVecPIRParams = sealpir.SerializeParamsList(server.IDtoVecParams)
+		reply.IDtoVecRedundancy = server.IDtoVecRedundancy
 	}
 
 	return nil

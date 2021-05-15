@@ -41,7 +41,6 @@ func main() {
 	// init experiment
 	client.experiment.GetBucketServerMS = make([]int64, 0)
 	client.experiment.GetBucketClientMS = make([]int64, 0)
-	client.experiment.GetBucketNetworkTime = make([]int64, 0)
 	client.experiment.GetAdServerMS = make([]int64, 0)
 	client.experiment.GetAdClientMS = make([]int64, 0)
 	client.experiment.PrivateGetAdDPFServerMS = make([]int64, 0)
@@ -63,38 +62,49 @@ func main() {
 
 	log.Printf("[Client]: session initialized (SID = %v)\n", client.sessionParams.SessionID)
 
-	for i := 0; i < args.ExperimentNumTrials; i++ {
+	experimentsToDiscard := 2 // discard first couple experiments which are always slower due to server warmup
+	for i := 0; i < args.ExperimentNumTrials+experimentsToDiscard; i++ {
 
 		if args.EvaluatePrivateANN {
 			start := time.Now()
-			_, serverMS, bandwidth, network := client.QueryBuckets()
-			client.experiment.GetBucketClientMS = append(client.experiment.GetBucketClientMS, time.Now().Sub(start).Milliseconds())
-			client.experiment.GetBucketServerMS = append(client.experiment.GetBucketServerMS, serverMS)
-			client.experiment.GetBucketBandwidthB = append(client.experiment.GetBucketBandwidthB, bandwidth)
-			client.experiment.GetBucketNetworkTime = append(client.experiment.GetBucketNetworkTime, network)
+			_, serverMS, bandwidth := client.QueryBuckets()
 
-			log.Printf("[Client]: bucket query took %v seconds\n", time.Now().Sub(start).Seconds())
+			if i >= experimentsToDiscard {
+				client.experiment.GetBucketClientMS = append(client.experiment.GetBucketClientMS, time.Now().Sub(start).Milliseconds())
+				client.experiment.GetBucketServerMS = append(client.experiment.GetBucketServerMS, serverMS)
+				client.experiment.GetBucketBandwidthB = append(client.experiment.GetBucketBandwidthB, bandwidth)
+
+				log.Printf("[Client]: bucket query took %v seconds\n", time.Now().Sub(start).Seconds())
+			}
 		}
 
 		if args.EvaluateAdRetrieval {
 			start := time.Now()
 			_, serverMS, serverDPFMS, bandwidth := client.PrivateQueryAd(0)
-			client.experiment.PrivateGetAdClientMS = append(client.experiment.PrivateGetAdClientMS, time.Now().Sub(start).Milliseconds())
-			client.experiment.PrivateGetAdServerMS = append(client.experiment.PrivateGetAdServerMS, serverMS)
-			client.experiment.PrivateGetAdBandwidthB = append(client.experiment.PrivateGetAdBandwidthB, bandwidth)
-			client.experiment.PrivateGetAdDPFServerMS = append(client.experiment.PrivateGetAdDPFServerMS, serverDPFMS)
-			log.Printf("[Client]: private ad query took %v seconds\n", time.Now().Sub(start).Seconds())
 
-			start = time.Now()
-			_, serverMS, bandwidth = client.QueryAd(0)
-			client.experiment.GetAdClientMS = append(client.experiment.GetAdClientMS, time.Now().Sub(start).Milliseconds())
-			client.experiment.GetAdServerMS = append(client.experiment.GetAdServerMS, serverMS)
-			client.experiment.GetAdBandwidthB = append(client.experiment.GetAdBandwidthB, bandwidth)
+			if i >= experimentsToDiscard {
+				client.experiment.PrivateGetAdClientMS = append(client.experiment.PrivateGetAdClientMS, time.Now().Sub(start).Milliseconds())
+				client.experiment.PrivateGetAdServerMS = append(client.experiment.PrivateGetAdServerMS, serverMS)
+				client.experiment.PrivateGetAdBandwidthB = append(client.experiment.PrivateGetAdBandwidthB, bandwidth)
+				client.experiment.PrivateGetAdDPFServerMS = append(client.experiment.PrivateGetAdDPFServerMS, serverDPFMS)
+				log.Printf("[Client]: private ad query took %v seconds\n", time.Now().Sub(start).Seconds())
 
-			log.Printf("[Client]: non-private ad query took %v seconds\n", time.Now().Sub(start).Seconds())
+				start = time.Now()
+				_, serverMS, bandwidth = client.QueryAd(0)
+				client.experiment.GetAdClientMS = append(client.experiment.GetAdClientMS, time.Now().Sub(start).Milliseconds())
+				client.experiment.GetAdServerMS = append(client.experiment.GetAdServerMS, serverMS)
+				client.experiment.GetAdBandwidthB = append(client.experiment.GetAdBandwidthB, bandwidth)
+
+				log.Printf("[Client]: non-private ad query took %v seconds\n", time.Now().Sub(start).Seconds())
+			}
 		}
 
-		log.Printf("[Client]: finished trial %v of %v \n", i+1, args.ExperimentNumTrials)
+		if i >= experimentsToDiscard {
+			log.Printf("[Client]: finished trial %v of %v \n", i+1, args.ExperimentNumTrials)
+		} else {
+			log.Printf("[Client]: finished warmup trial %v of %v \n", i+1, experimentsToDiscard)
+
+		}
 	}
 
 	// write the result of the evalaution to the specified file

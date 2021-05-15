@@ -62,7 +62,6 @@ func (server *Server) WaitForExperiment(args *api.WaitForExperimentArgs, reply *
 func (server *Server) PrivateBucketQuery(args *api.BucketQueryArgs, reply *api.BucketQueryResponse) error {
 
 	start := time.Now()
-	reply.StartsStartTime = time.Now().Unix()
 
 	log.Printf("[Server]: received request to PrivateBucketQuery\n")
 
