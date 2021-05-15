@@ -51,6 +51,7 @@ bash scripts/[EXPERIMENT SCRIPT] --port 8000 --otherhost localhost --otherport 8
 
 2) On the client machine:
 ```
+ cd adveil/cmd/client
  bash scripts/run.sh --brokerhost [BROKER IP ADDR] --brokerport 8000 --trials 5 --targeting --autoclose
 ```
 
