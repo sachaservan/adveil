@@ -38,7 +38,21 @@ cmake .
 make 
 ```
 
-3) Run the desired experiment!  
+3) Run the desired experiment! (See next section)
+
+
+## Running experiments 
+
+1) On the Broker machine:
+```
+cd adveil/cmd/server
+bash scripts/[EXPERIMENT SCRIPT] --port 8000 --otherhost localhost --otherport 8001
+```
+
+2) On the client machine:
+```
+ bash scripts/run.sh --brokerhost [BROKER IP ADDR] --brokerport 8000 --trials 5 --targeting --autoclose
+```
 
 
 ## Issues with running on MacOS
