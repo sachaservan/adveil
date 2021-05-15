@@ -100,7 +100,7 @@ func main() {
 		}
 
 		if i >= experimentsToDiscard {
-			log.Printf("[Client]: finished trial %v of %v \n", i+1, args.ExperimentNumTrials)
+			log.Printf("[Client]: finished trial %v of %v \n", i+1-experimentsToDiscard, args.ExperimentNumTrials)
 		} else {
 			log.Printf("[Client]: finished warmup trial %v of %v \n", i+1, experimentsToDiscard)
 
