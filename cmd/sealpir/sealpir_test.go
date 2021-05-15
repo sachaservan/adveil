@@ -27,7 +27,7 @@ func getTestParamsParallel(nParallel int) *Params {
 	logt := 12
 	d := 2
 
-	return InitParams(numItems, itemBytes, polyDegree, logt, d, 30)
+	return InitParams(numItems, itemBytes, polyDegree, logt, d, nParallel)
 }
 
 func TestDBBitItem(t *testing.T) {
@@ -122,8 +122,9 @@ func TestFullParallel(t *testing.T) {
 
 	elemIndexBig, _ := rand.Int(rand.Reader, big.NewInt(int64(params.NumItems)))
 	elemIndex := elemIndexBig.Int64() % int64(params.NumItems)
-	queryDb := int(elemIndex / int64(params.NParallelism))
-	queryIndex := elemIndex % int64(params.NParallelism)
+	numItemsPerParallelDB := int64(math.Ceil(float64(params.NumItems / params.NParallelism)))
+	queryDb := int(elemIndex / numItemsPerParallelDB)
+	queryIndex := elemIndex % numItemsPerParallelDB
 
 	index := client.GetFVIndex(queryIndex)
 	offset := client.GetFVOffset(queryIndex)
