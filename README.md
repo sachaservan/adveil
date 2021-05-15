@@ -55,6 +55,7 @@ bash scripts/[EXPERIMENT SCRIPT] --port 8000 --otherhost localhost --otherport 8
  bash scripts/run.sh --brokerhost [BROKER IP ADDR] --brokerport 8000 --trials 5 --targeting --autoclose
 ```
 
+Resulting experiment summary will be saved in the ```adveil/results``` directory. 
 
 ## Issues with running on MacOS
 While the code has been tested on MacOS (Big Sur), there is a bug in the cgo interface. 
