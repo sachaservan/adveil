@@ -101,22 +101,6 @@ func (server *Server) SetGaloisKeys(keys *GaloisKeys) {
 	}
 }
 
-func (server *Server) SetupDatabase(db *Database) {
-
-	allData := db.Bytes
-	bytes := server.Params.ItemBytes
-	partsize := bytes * int(math.Ceil(float64(len(allData)/bytes/server.Params.NParallelism)))
-
-	padding := make([]byte, len(allData)%partsize)
-	allData = append(allData, padding...)
-
-	// split the database into many sub-databases
-	for i := 0; i < server.Params.NParallelism; i++ {
-		chunkBytes := allData[i*partsize : i*partsize+partsize]
-		C.setup_database(server.DBs[i], C.CString(string(chunkBytes)))
-	}
-}
-
 func (client *Client) GetFVIndex(elemIndex int64) int64 {
 	return int64(C.fv_index(client.Pointer, C.ulong(elemIndex)))
 }
