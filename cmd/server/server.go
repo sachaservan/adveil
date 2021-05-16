@@ -26,12 +26,12 @@ type Server struct {
 	KnnValues       []*vec.Vec
 	Knn             *anns.LSHBasedKNN
 
-	IDtoVecRedundancy int                 // redundancy required for batch-PIR accuracy
-	IDtoVecDB         []*sealpir.Database // mapping of ID to vector
-	IDtoVecParams     []*sealpir.Params
+	IDtoVecRedundancy int                       // redundancy required for batch-PIR accuracy
+	IDtoVecDB         map[int]*sealpir.Database // each database is a mapping of ID (index) to vector
+	IDtoVecParams     map[int]*sealpir.Params
 
-	TableDBs    []*sealpir.Database // array of databases; one for each hash table
-	TableParams []*sealpir.Params   // array of SealPIR params; one for each hash table
+	TableDBs    map[int]*sealpir.Database // array of databases; one for each hash table
+	TableParams map[int]*sealpir.Params   // array of SealPIR params; one for each hash table
 
 	AdDb   *sealpir.Database // database of ads
 	AdSize int
@@ -65,14 +65,22 @@ func (server *Server) PrivateBucketQuery(args *api.BucketQueryArgs, reply *api.B
 
 	log.Printf("[Server]: received request to PrivateBucketQuery\n")
 
-	reply.Answers = make([][]*sealpir.Answer, server.KnnParams.NumTables)
+	reply.Answers = make(map[int][]*sealpir.Answer, server.KnnParams.NumTables)
 
 	var wg sync.WaitGroup
+	var mu sync.Mutex
 	for tableIndex := 0; tableIndex < server.KnnParams.NumTables; tableIndex++ {
 		wg.Add(1)
 		go func(tableIndex int) {
 			defer wg.Done()
-			reply.Answers[tableIndex] = server.TableDBs[tableIndex].Server.GenAnswer(args.Queries[tableIndex])
+			mu.Lock()
+			query := args.Queries[tableIndex]
+			db := server.TableDBs[tableIndex]
+			mu.Unlock()
+			res := db.Server.GenAnswer(query)
+			mu.Lock()
+			reply.Answers[tableIndex] = res
+			mu.Unlock()
 		}(tableIndex)
 	}
 
@@ -92,7 +100,7 @@ func (server *Server) PrivateMappingQuery(args *api.MappingQueryArgs, reply *api
 
 	log.Printf("[Server]: received request to PrivateMappingQuery\n")
 
-	reply.Answers = make([][]*sealpir.Answer, server.IDtoVecRedundancy)
+	reply.Answers = make(map[int][]*sealpir.Answer, server.IDtoVecRedundancy)
 
 	var wg sync.WaitGroup
 	for m := 0; m < server.IDtoVecRedundancy; m++ {
@@ -198,8 +206,8 @@ func (server *Server) buildKNNDataStructure() {
 	bytesPerMapping := (vecBits + sigBits) / 8
 
 	// SealPIR databases and params for each hash table
-	server.TableDBs = make([]*sealpir.Database, numTables)
-	server.TableParams = make([]*sealpir.Params, numTables)
+	server.TableDBs = make(map[int]*sealpir.Database)
+	server.TableParams = make(map[int]*sealpir.Params)
 
 	for t := 0; t < numTables; t++ {
 		params := sealpir.InitParams(
@@ -226,8 +234,8 @@ func (server *Server) buildKNNDataStructure() {
 		server.KnnParams.NumTables, // divide database into NumTables separate databases
 	)
 
-	server.IDtoVecDB = make([]*sealpir.Database, server.IDtoVecRedundancy)
-	server.IDtoVecParams = make([]*sealpir.Params, server.IDtoVecRedundancy)
+	server.IDtoVecDB = make(map[int]*sealpir.Database)
+	server.IDtoVecParams = make(map[int]*sealpir.Params)
 
 	for r := 0; r < server.IDtoVecRedundancy; r++ {
 		_, db := sealpir.InitRandomDB(params)

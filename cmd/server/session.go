@@ -46,9 +46,9 @@ func (server *Server) InitSession(args api.InitSessionArgs, reply *api.InitSessi
 
 	if server.ANNS {
 		reply.NumTables = server.Knn.NumTables()
-		reply.TablePIRParams = sealpir.SerializeParamsList(server.TableParams)
+		reply.TablePIRParams = sealpir.SerializeParamsMap(server.TableParams)
 		reply.TableHashFunctions = server.Knn.Hashes
-		reply.IDtoVecPIRParams = sealpir.SerializeParamsList(server.IDtoVecParams)
+		reply.IDtoVecPIRParams = sealpir.SerializeParamsMap(server.IDtoVecParams)
 		reply.IDtoVecRedundancy = server.IDtoVecRedundancy
 	}
 

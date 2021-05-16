@@ -34,8 +34,8 @@ func NewLSHBased(params *LSHParams) (*LSHBasedKNN, error) {
 	knn.Params = params
 
 	// initialize a new set of hashes
-	knn.Hashes = make([]*LSH, knn.Params.NumTables)
-	knn.Tables = make([]*Table, knn.Params.NumTables)
+	knn.Hashes = make(map[int]*LSH)
+	knn.Tables = make(map[int]*Table)
 	for i := 0; i < knn.Params.NumTables; i++ {
 		switch knn.Params.Metric {
 		case HammingDistance:

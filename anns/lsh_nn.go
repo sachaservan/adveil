@@ -27,10 +27,10 @@ type Table struct {
 // LSHBasedKNN is a data structure that uses GaussianHash to
 // hash a set of points into buckets for nearest neighbor search
 type LSHBasedKNN struct {
-	Params *LSHParams // parameters used in constructing the data structure
-	Data   []*vec.Vec // copy of the original data vectors
-	Tables []*Table   // array of hash tables storing the data
-	Hashes []*LSH     // hash function for each of the numTables tables
+	Params *LSHParams     // parameters used in constructing the data structure
+	Data   []*vec.Vec     // copy of the original data vectors
+	Tables map[int]*Table // array of hash tables storing the data
+	Hashes map[int]*LSH   // hash function for each of the numTables tables
 }
 
 // RandomizeBucketKeys replaces each key in the hash table
@@ -218,5 +218,5 @@ func (knn *LSHBasedKNN) GetHashForTable(t int) *LSH {
 
 // NumTables returns the number of tables in the KNN data structure
 func (knn *LSHBasedKNN) NumTables() int {
-	return len(knn.Tables)
+	return knn.Params.NumTables
 }

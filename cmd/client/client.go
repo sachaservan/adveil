@@ -45,16 +45,17 @@ type Client struct {
 	// SealPIR related
 	// NOTE: "client" here refers to the PIR client in SealPIR
 	// and is a bridge between Go and C++ code
-	tablePIRClients    []*sealpir.Client     // clients used to query each tables
-	tablePIRKeys       []*sealpir.GaloisKeys // keys used to query each hash table
-	idToVecPIRClients  []*sealpir.Client     // clients used to batch query mappings
-	idToVecPIRKeys     []*sealpir.GaloisKeys // keys used to batch query mappings
-	adPIRClient        *sealpir.Client       // client used to query ad database
-	adPIRKeys          *sealpir.GaloisKeys   // ad database SealPIR keys
-	tableNumBuckets    []int                 // number of hash buckets in each table
-	tablePIRParams     []*sealpir.Params     // SealPIR params for each table
-	adPIRParams        *sealpir.Params       // SealPIR params for the ad database
-	tableHashFunctions []*anns.LSH           // LSH functions used to query tables
+	tablePIRClients    map[int]*sealpir.Client     // clients used to query each tables
+	tablePIRKeys       map[int]*sealpir.GaloisKeys // keys used to query each hash table
+	idToVecPIRClients  map[int]*sealpir.Client     // clients used to batch query mappings
+	idToVecPIRKeys     map[int]*sealpir.GaloisKeys // keys used to batch query mappings
+	tableNumBuckets    map[int]int                 // number of hash buckets in each table
+	tablePIRParams     map[int]*sealpir.Params     // SealPIR params for each table
+	tableHashFunctions map[int]*anns.LSH           // LSH functions used to query tables
+
+	adPIRParams *sealpir.Params     // SealPIR params for the ad database
+	adPIRClient *sealpir.Client     // client used to query ad database
+	adPIRKeys   *sealpir.GaloisKeys // ad database SealPIR keys
 
 	// client's profile feature vector
 	profile    *vec.Vec
@@ -87,23 +88,23 @@ func (client *Client) InitSession() {
 	if res.TablePIRParams != nil {
 		// initialize the SealPIR clients used to query each hash table
 		// using the params provided by the server
-		tableClients := make([]*sealpir.Client, 0)
-		tableKeys := make([]*sealpir.GaloisKeys, 0)
-		idToVecClients := make([]*sealpir.Client, 0)
-		idToVecKeys := make([]*sealpir.GaloisKeys, 0)
+		tableClients := make(map[int]*sealpir.Client)
+		tableKeys := make(map[int]*sealpir.GaloisKeys)
+		idToVecClients := make(map[int]*sealpir.Client)
+		idToVecKeys := make(map[int]*sealpir.GaloisKeys)
 
-		for _, params := range res.TablePIRParams {
+		for table, params := range res.TablePIRParams {
 			c := sealpir.InitClient(sealpir.DeserializeParams(params), 0)
 			keys := c.GenGaloisKeys()
-			tableClients = append(tableClients, c)
-			tableKeys = append(tableKeys, keys)
+			tableClients[table] = c
+			tableKeys[table] = keys
 		}
 
-		for _, params := range res.IDtoVecPIRParams {
+		for i, params := range res.IDtoVecPIRParams {
 			c := sealpir.InitClient(sealpir.DeserializeParams(params), 0)
 			keys := c.GenGaloisKeys()
-			idToVecClients = append(idToVecClients, c)
-			idToVecKeys = append(idToVecKeys, keys)
+			idToVecClients[i] = c
+			idToVecKeys[i] = keys
 		}
 
 		client.tablePIRClients = tableClients
@@ -112,7 +113,7 @@ func (client *Client) InitSession() {
 		client.idToVecPIRKeys = idToVecKeys
 
 		client.tableNumBuckets = res.TableNumBuckets
-		client.tablePIRParams = sealpir.DeserializeParamsList(res.TablePIRParams)
+		client.tablePIRParams = sealpir.DeserializeParamsMap(res.TablePIRParams)
 		client.tableHashFunctions = res.TableHashFunctions
 	}
 
@@ -221,9 +222,9 @@ func (client *Client) QueryBuckets() ([][]int, int64, int64) {
 	qargs := &api.BucketQueryArgs{}
 	qres := &api.BucketQueryResponse{}
 
-	qargs.Queries = make([]*sealpir.Query, 0)
 	// query each hash table for the bucket that collides with the
 	// client's profile feature vector under the server-provided LSH function
+	qargs.Queries = make(map[int]*sealpir.Query)
 	for tableIndex := 0; tableIndex < client.sessionParams.NumTables; tableIndex++ {
 
 		h := client.tableHashFunctions[tableIndex]
@@ -233,7 +234,7 @@ func (client *Client) QueryBuckets() ([][]int, int64, int64) {
 		index := c.GetFVIndex(elemIndex)
 		query := c.GenQuery(index)
 
-		qargs.Queries = append(qargs.Queries, query)
+		qargs.Queries[tableIndex] = query
 	}
 
 	if !client.call("Server.PrivateBucketQuery", &qargs, &qres) {
@@ -249,17 +250,20 @@ func (client *Client) QueryBuckets() ([][]int, int64, int64) {
 
 		c := client.tablePIRClients[tableIndex]
 		offset := c.GetFVOffset(elemIndex)
+
+		// TODO: below is incorrect because the databases are not divided into number tables but rather nParallel!
 		c.Recover(qres.Answers[tableIndex][0], offset)
 	}
 
 	margs := &api.MappingQueryArgs{}
 	mres := &api.MappingQueryResponse{}
 
+	margs.Queries = make(map[int]*sealpir.Query)
 	for i := 0; i < client.sessionParams.IDtoVecRedundancy; i++ {
 		c := client.idToVecPIRClients[i]
 		index := c.GetFVIndex(0)
 		query := c.GenQuery(index)
-		margs.Queries = append(margs.Queries, query)
+		margs.Queries[i] = query
 	}
 
 	if !client.call("Server.PrivateMappingQuery", &margs, &mres) {

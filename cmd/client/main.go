@@ -45,7 +45,7 @@ func main() {
 	client.experiment.GetAdClientMS = make([]int64, 0)
 	client.experiment.PrivateGetAdDPFServerMS = make([]int64, 0)
 
-	log.Printf("[Client]: waiting for server(s) to initialize \n")
+	log.Printf("[Client]: waiting for server to initialize \n")
 
 	// wait for the server(s) to finish initializing
 	client.WaitForExperimentStart()
