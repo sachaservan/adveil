@@ -73,14 +73,18 @@ func (server *Server) PrivateBucketQuery(args *api.BucketQueryArgs, reply *api.B
 		wg.Add(1)
 		go func(tableIndex int) {
 			defer wg.Done()
+
 			mu.Lock()
 			query := args.Queries[tableIndex]
 			db := server.TableDBs[tableIndex]
 			mu.Unlock()
+
 			res := db.Server.GenAnswer(query)
+
 			mu.Lock()
 			reply.Answers[tableIndex] = res
 			mu.Unlock()
+
 		}(tableIndex)
 	}
 
@@ -103,11 +107,23 @@ func (server *Server) PrivateMappingQuery(args *api.MappingQueryArgs, reply *api
 	reply.Answers = make(map[int][]*sealpir.Answer, server.IDtoVecRedundancy)
 
 	var wg sync.WaitGroup
+	var mu sync.Mutex
 	for m := 0; m < server.IDtoVecRedundancy; m++ {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			reply.Answers[i] = server.IDtoVecDB[i].Server.GenAnswer(args.Queries[i])
+
+			mu.Lock()
+			query := args.Queries[i]
+			db := server.IDtoVecDB[i]
+			mu.Unlock()
+
+			res := db.Server.GenAnswer(query)
+
+			mu.Lock()
+			reply.Answers[i] = res
+			mu.Unlock()
+
 		}(m)
 	}
 
