@@ -93,7 +93,7 @@ func GetSortedCandidates(candidates []*vec.Vec, ids []int) ([]*vec.Vec, error) {
 		return nil, errors.New("no candidates provided")
 	}
 
-	indexMap := make(map[int]int, len(ids))
+	indexMap := make(map[int]int)
 	for _, index := range ids {
 		indexMap[index]++
 	}
