@@ -13,64 +13,6 @@ import (
 	"unsafe"
 )
 
-// SealPIR parameters: see C/main.cpp
-const DefaultSealPolyDegree = 2048
-const DefaultSealLogt = 12
-const DefaultSealRecursionDim = 2
-
-type Params struct {
-	Pointer      unsafe.Pointer
-	NumItems     int
-	ItemBytes    int
-	NParallelism int
-	Logt         int
-	Dim          int
-	PolyDegree   int
-	ItemChunks   int
-}
-
-type SerializedParams struct {
-	NumItems     int
-	ItemBytes    int
-	NParallelism int
-	Logt         int
-	Dim          int
-	PolyDegree   int
-}
-
-type ExpandedQuery struct {
-	Pointer unsafe.Pointer
-}
-
-type Client struct {
-	Params  *Params
-	Pointer unsafe.Pointer
-}
-
-type Server struct {
-	DBs    []unsafe.Pointer // one database per parallelism
-	Params *Params
-}
-
-type GaloisKeys struct {
-	Str      string
-	ClientID uint64
-}
-
-type Query struct {
-	Str            string
-	ClientID       uint64
-	CiphertextSize uint64
-	Count          uint64
-}
-
-type Answer struct {
-	Str            string
-	ClientID       uint64
-	CiphertextSize uint64
-	Count          uint64
-}
-
 // QueryCStruct must match struct in wrapper.h *exactly*
 type QueryCStruct struct {
 	StrPtr         *C.char
@@ -144,37 +86,6 @@ func InitClient(params *Params, clientId int) *Client {
 	}
 }
 
-func InitServer(params *Params) *Server {
-
-	parallelism := params.NParallelism
-	dbs := make([]unsafe.Pointer, parallelism)
-
-	for i := 0; i < parallelism; i++ {
-		dbs[i] = C.init_server_wrapper(params.Pointer)
-	}
-	return &Server{
-		DBs:    dbs,
-		Params: params,
-	}
-}
-
-func (client *Client) GenGaloisKeys() *GaloisKeys {
-
-	// HACK: convert SerializedGaloisKeys struct from wrapper.h into a GaloisKeys struct
-	// see: https://stackoverflow.com/questions/28551043/golang-cast-memory-to-struct
-	keyPtr := C.gen_galois_keys(client.Pointer)
-	size := unsafe.Sizeof(GaloisKeysCStruct{})
-	structMem := (*(*[1<<31 - 1]byte)(keyPtr))[:size]
-	keyC := (*(*GaloisKeysCStruct)(unsafe.Pointer(&structMem[0])))
-
-	key := GaloisKeys{
-		Str: C.GoStringN(keyC.StrPtr, C.int(keyC.StrLen)),
-	}
-	key.ClientID = uint64(keyC.ClientID)
-
-	return &key
-}
-
 func (server *Server) SetGaloisKeys(keys *GaloisKeys) {
 
 	galKeysC := GaloisKeysCStruct{
@@ -188,23 +99,6 @@ func (server *Server) SetGaloisKeys(keys *GaloisKeys) {
 	for i := 0; i < server.Params.NParallelism; i++ {
 		C.set_galois_keys(server.DBs[i], keysPtr)
 	}
-}
-
-func (server *Server) SetupDatabase(db *Database) {
-
-	allData := db.Bytes
-	bytes := server.Params.ItemBytes
-	partsize := bytes * int(math.Ceil(float64(len(allData)/bytes/server.Params.NParallelism)))
-
-	padding := make([]byte, len(allData)%partsize)
-	allData = append(allData, padding...)
-
-	// split the database into many sub-databases
-	for i := 0; i < server.Params.NParallelism; i++ {
-		chunkBytes := allData[i*partsize : i*partsize+partsize]
-		C.setup_database(server.DBs[i], C.CString(string(chunkBytes)))
-	}
-
 }
 
 func (client *Client) GetFVIndex(elemIndex int64) int64 {
@@ -303,43 +197,7 @@ func (server *Server) ExpandedQuery(query *Query) *ExpandedQuery {
 	}
 }
 
-func (server *Server) GenAnswerWithExpandedQuery(expandedQuery *ExpandedQuery) []*Answer {
-
-	answers := make([]*Answer, server.Params.NParallelism)
-
-	var wg sync.WaitGroup
-	for i := 0; i < server.Params.NParallelism; i++ {
-		wg.Add(1)
-
-		go func(i int) {
-			defer wg.Done()
-
-			ansPtr := C.gen_answer_with_expanded_query(server.DBs[i], expandedQuery.Pointer)
-
-			// convert SerializedAnswer struct from wrapper.h into a Answer struct
-			// see: https://stackoverflow.com/questions/28551043/golang-cast-memory-to-struct
-			size := unsafe.Sizeof(AnswerCStruct{})
-			structMem := (*(*[1<<31 - 1]byte)(ansPtr))[:size]
-			answerC := (*(*AnswerCStruct)(unsafe.Pointer(&structMem[0])))
-
-			answer := Answer{
-				Str: C.GoStringN(answerC.StrPtr, C.int(answerC.StrLen)),
-			}
-
-			answer.CiphertextSize = uint64(answerC.CiphertextSize)
-			answer.Count = uint64(answerC.Count)
-
-			answers[i] = &answer
-		}(i)
-	}
-
-	wg.Wait()
-
-	return answers
-}
-
 func (client *Client) Recover(answer *Answer, offset int64) []byte {
-
 	// convert to answerC type
 	answerC := AnswerCStruct{
 		StrPtr: C.CString(answer.Str),
@@ -351,63 +209,4 @@ func (client *Client) Recover(answer *Answer, offset int64) []byte {
 	res := C.recover(client.Pointer, unsafe.Pointer(&answerC))
 	minSize := 8 * (offset + 1) * int64(client.Params.ItemBytes)
 	return C.GoBytes(unsafe.Pointer(res), C.int(minSize))
-}
-
-func (params *Params) Free() {
-	C.free_params(params.Pointer)
-}
-
-func (client *Client) Free() {
-	C.free_client_wrapper(client.Pointer)
-}
-
-func (server *Server) Free() {
-	for i := 0; i < server.Params.NParallelism; i++ {
-		C.free_server_wrapper(server.DBs[i])
-	}
-}
-
-// SerializeParams returns a serialized version of params
-func SerializeParams(params *Params) *SerializedParams {
-	ser := &SerializedParams{}
-	ser.ItemBytes = params.ItemBytes
-	ser.NParallelism = params.NParallelism
-	ser.NumItems = params.NumItems
-	ser.Dim = params.Dim
-	ser.PolyDegree = params.PolyDegree
-	ser.Logt = params.Logt
-
-	return ser
-}
-
-func DeserializeParams(ser *SerializedParams) *Params {
-	return InitParams(
-		ser.NumItems,
-		ser.ItemBytes,
-		ser.PolyDegree,
-		ser.Logt,
-		ser.Dim,
-		ser.NParallelism,
-	)
-}
-
-func SerializeParamsList(paramsList []*Params) []*SerializedParams {
-
-	serList := make([]*SerializedParams, len(paramsList))
-
-	for i := 0; i < len(paramsList); i++ {
-		serList[i] = SerializeParams(paramsList[i])
-	}
-
-	return serList
-}
-
-func DeserializeParamsList(serList []*SerializedParams) []*Params {
-	list := make([]*Params, len(serList))
-
-	for i := 0; i < len(serList); i++ {
-		list[i] = DeserializeParams(serList[i])
-	}
-
-	return list
 }
