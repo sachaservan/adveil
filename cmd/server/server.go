@@ -65,7 +65,7 @@ func (server *Server) PrivateBucketQuery(args *api.BucketQueryArgs, reply *api.B
 
 	log.Printf("[Server]: received request to PrivateBucketQuery\n")
 
-	reply.Answers = make(map[int][]*sealpir.Answer, server.KnnParams.NumTables)
+	reply.Answers = make(map[int][]*sealpir.Answer)
 
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -104,7 +104,7 @@ func (server *Server) PrivateMappingQuery(args *api.MappingQueryArgs, reply *api
 
 	log.Printf("[Server]: received request to PrivateMappingQuery\n")
 
-	reply.Answers = make(map[int][]*sealpir.Answer, server.IDtoVecRedundancy)
+	reply.Answers = make(map[int][]*sealpir.Answer)
 
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -225,23 +225,23 @@ func (server *Server) buildKNNDataStructure() {
 	server.TableDBs = make(map[int]*sealpir.Database)
 	server.TableParams = make(map[int]*sealpir.Params)
 
-	for t := 0; t < numTables; t++ {
-		params := sealpir.InitParams(
-			numBuckets,
-			bytesPerBucket,
-			sealpir.DefaultSealPolyDegree,
-			sealpir.DefaultSealLogt,
-			sealpir.DefaultSealRecursionDim,
-			server.NumProcs,
-		)
+	params := sealpir.InitParams(
+		numBuckets,
+		bytesPerBucket,
+		sealpir.DefaultSealPolyDegree,
+		sealpir.DefaultSealLogt,
+		sealpir.DefaultSealRecursionDim,
+		server.NumProcs,
+	)
 
+	for t := 0; t < numTables; t++ {
 		_, db := sealpir.InitRandomDB(params)
 		server.TableParams[t] = params
 		server.TableDBs[t] = db
 	}
 
 	// SealPIR database for the mapping from ID to feature vector
-	params := sealpir.InitParams(
+	params = sealpir.InitParams(
 		len(server.KnnValues),
 		bytesPerMapping,
 		sealpir.DefaultSealPolyDegree,

@@ -110,13 +110,9 @@ func (client *Client) GetFVOffset(elemIndex int64) int64 {
 }
 
 func (client *Client) GenQuery(index int64) *Query {
-
-	// HACK: convert SerializedQuery struct from wrapper.h into a Query struct
-	// see: https://stackoverflow.com/questions/28551043/golang-cast-memory-to-struct
 	qPtr := C.gen_query(client.Pointer, C.ulong(index))
 	size := unsafe.Sizeof(QueryCStruct{})
-	structMem := (*(*[1<<31 - 1]byte)(qPtr))[:size]
-	queryC := (*(*QueryCStruct)(unsafe.Pointer(&structMem[0])))
+	queryC := (*QueryCStruct)(unsafe.Pointer(qptr))
 
 	query := Query{
 		Str: C.GoStringN(queryC.StrPtr, C.int(queryC.StrLen)),
@@ -154,12 +150,7 @@ func (server *Server) GenAnswer(query *Query) []*Answer {
 			defer wg.Done()
 
 			ansPtr := C.gen_answer(server.DBs[i], qPtr)
-
-			// convert SerializedAnswer struct from wrapper.h into a Answer struct
-			// see: https://stackoverflow.com/questions/28551043/golang-cast-memory-to-struct
-			size := unsafe.Sizeof(AnswerCStruct{})
-			structMem := (*(*[1<<31 - 1]byte)(ansPtr))[:size]
-			answerC := (*(*AnswerCStruct)(unsafe.Pointer(&structMem[0])))
+			answerC := (*AnswerCStruct)(unsafe.Pointer(ansPtr))
 
 			answer := Answer{
 				Str: C.GoStringN(answerC.StrPtr, C.int(answerC.StrLen)),
@@ -208,6 +199,6 @@ func (client *Client) Recover(answer *Answer, offset int64) []byte {
 	answerC.Count = C.ulong(answer.Count)
 
 	res := C.recover(client.Pointer, unsafe.Pointer(&answerC))
-	minSize := 8 * (offset + 1) * int64(client.Params.ItemBytes)
+	minSize := 8 * offset * int64(client.Params.ItemBytes)
 	return C.GoBytes(unsafe.Pointer(res), C.int(minSize))
 }

@@ -101,13 +101,8 @@ func (server *Server) SetupDatabase(db *Database) {
 }
 
 func (client *Client) GenGaloisKeys() *GaloisKeys {
-
-	// HACK: convert SerializedGaloisKeys struct from wrapper.h into a GaloisKeys struct
-	// see: https://stackoverflow.com/questions/28551043/golang-cast-memory-to-struct
 	keyPtr := C.gen_galois_keys(client.Pointer)
-	size := unsafe.Sizeof(GaloisKeysCStruct{})
-	structMem := (*(*[1<<31 - 1]byte)(keyPtr))[:size]
-	keyC := (*(*GaloisKeysCStruct)(unsafe.Pointer(&structMem[0])))
+	keyC := (*GaloisKeysCStruct)(unsafe.Pointer(keyPtr))
 
 	key := GaloisKeys{
 		Str: C.GoStringN(keyC.StrPtr, C.int(keyC.StrLen)),
@@ -129,12 +124,7 @@ func (server *Server) GenAnswerWithExpandedQuery(expandedQuery *ExpandedQuery) [
 			defer wg.Done()
 
 			ansPtr := C.gen_answer_with_expanded_query(server.DBs[i], expandedQuery.Pointer)
-
-			// convert SerializedAnswer struct from wrapper.h into a Answer struct
-			// see: https://stackoverflow.com/questions/28551043/golang-cast-memory-to-struct
-			size := unsafe.Sizeof(AnswerCStruct{})
-			structMem := (*(*[1<<31 - 1]byte)(ansPtr))[:size]
-			answerC := (*(*AnswerCStruct)(unsafe.Pointer(&structMem[0])))
+			answerC := (*AnswerCStruct)(unsafe.Pointer(ansPtr))
 
 			answer := Answer{
 				Str: C.GoStringN(answerC.StrPtr, C.int(answerC.StrLen)),
@@ -189,7 +179,7 @@ func SerializeParamsList(paramsList []*Params) []*SerializedParams {
 
 func SerializeParamsMap(paramsMap map[int]*Params) map[int]*SerializedParams {
 
-	serMap := make(map[int]*SerializedParams, len(paramsMap))
+	serMap := make(map[int]*SerializedParams)
 
 	for k, v := range paramsMap {
 		serMap[k] = SerializeParams(v)
@@ -208,10 +198,10 @@ func DeserializeParamsList(serList []*SerializedParams) []*Params {
 	return list
 }
 
-func DeserializeParamsMap(serList map[int]*SerializedParams) map[int]*Params {
-	m := make(map[int]*Params, len(serList))
+func DeserializeParamsMap(serMap map[int]*SerializedParams) map[int]*Params {
+	m := make(map[int]*Params)
 
-	for k, v := range serList {
+	for k, v := range serMap {
 		m[k] = DeserializeParams(v)
 	}
 

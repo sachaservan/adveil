@@ -50,7 +50,6 @@ type Client struct {
 	idToVecPIRClients  map[int]*sealpir.Client     // clients used to batch query mappings
 	idToVecPIRKeys     map[int]*sealpir.GaloisKeys // keys used to batch query mappings
 	tableNumBuckets    map[int]int                 // number of hash buckets in each table
-	tablePIRParams     map[int]*sealpir.Params     // SealPIR params for each table
 	tableHashFunctions map[int]*anns.LSH           // LSH functions used to query tables
 
 	adPIRParams *sealpir.Params     // SealPIR params for the ad database
@@ -113,7 +112,6 @@ func (client *Client) InitSession() {
 		client.idToVecPIRKeys = idToVecKeys
 
 		client.tableNumBuckets = res.TableNumBuckets
-		client.tablePIRParams = sealpir.DeserializeParamsMap(res.TablePIRParams)
 		client.tableHashFunctions = res.TableHashFunctions
 	}
 
@@ -250,8 +248,6 @@ func (client *Client) QueryBuckets() ([][]int, int64, int64) {
 
 		c := client.tablePIRClients[tableIndex]
 		offset := c.GetFVOffset(elemIndex)
-
-		// TODO: below is incorrect because the databases are not divided into number tables but rather nParallel!
 		c.Recover(qres.Answers[tableIndex][0], offset)
 	}
 
@@ -272,7 +268,9 @@ func (client *Client) QueryBuckets() ([][]int, int64, int64) {
 
 	for i := 0; i < client.sessionParams.IDtoVecRedundancy; i++ {
 		c := client.idToVecPIRClients[i]
-		offset := c.GetFVOffset(0) // retrieve
+		// TODO: make this a batch PIR recover
+		index := int64(0)
+		offset := c.GetFVOffset(index) // retrieve
 		c.Recover(mres.Answers[i][0], offset)
 	}
 
