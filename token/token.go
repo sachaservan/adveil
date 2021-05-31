@@ -2,9 +2,10 @@
 package token
 
 import (
-	"adveil/crypto"
 	crand "crypto/rand"
 	"math/big"
+
+	"github.com/sachaservan/adveil/crypto"
 )
 
 type SignedToken struct {

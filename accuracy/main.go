@@ -1,11 +1,12 @@
 package main
 
 import (
-	"adveil/anns"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"sync"
+
+	"github.com/sachaservan/adveil/anns"
 
 	"github.com/alexflint/go-arg"
 	"github.com/gonum/stat"

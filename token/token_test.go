@@ -1,11 +1,12 @@
 package token
 
 import (
-	"adveil/crypto"
 	"crypto/elliptic"
 	"crypto/rand"
 	_ "crypto/sha256"
 	"testing"
+
+	"github.com/sachaservan/adveil/crypto"
 )
 
 func TestBlindingP256(t *testing.T) {
