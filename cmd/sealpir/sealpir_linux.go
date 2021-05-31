@@ -110,9 +110,9 @@ func (client *Client) GetFVOffset(elemIndex int64) int64 {
 }
 
 func (client *Client) GenQuery(index int64) *Query {
+
 	qPtr := C.gen_query(client.Pointer, C.ulong(index))
-	size := unsafe.Sizeof(QueryCStruct{})
-	queryC := (*QueryCStruct)(unsafe.Pointer(qptr))
+	queryC := (*QueryCStruct)(unsafe.Pointer(qPtr))
 
 	query := Query{
 		Str: C.GoStringN(queryC.StrPtr, C.int(queryC.StrLen)),
@@ -189,7 +189,6 @@ func (server *Server) ExpandedQuery(query *Query) *ExpandedQuery {
 }
 
 func (client *Client) Recover(answer *Answer, offset int64) []byte {
-
 	// convert to answerC type
 	answerC := AnswerCStruct{
 		StrPtr: C.CString(answer.Str),
