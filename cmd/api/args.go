@@ -1,8 +1,8 @@
 package api
 
 import (
-	"adveil/anns"
-	"adveil/cmd/sealpir"
+	"github.com/sachaservan/adveil/anns"
+	"github.com/sachaservan/adveil/cmd/sealpir"
 )
 
 // Error is provided as a response to API queries

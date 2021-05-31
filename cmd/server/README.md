@@ -1,4 +1,4 @@
-# Running the AdVeil servers (Broker and the CoA)
+# Running the AdVeil server (Broker)
 
 Note: due to the C++ binding for SealPIR, the server executable from the ```adveil/cmd/server``` directory.
 Specifically, the executable expects ```../../C/libsealwrapper.a``` to be the SealPIR library. 
@@ -10,27 +10,11 @@ bash scripts/run.sh
     --numads 15 \
     --size 32000 \
     --port 8000 \
-    --otherhost localhost \ 
-    --otherport 8001 \
     --numfeatures 100 \
     --numtables 1 \
     --bucketsize 1 \
     --numprocs 10 
 ```
-
-### Running the CoA server
-Note: the CoA server is only used to time reporting metrics.
-The server is not required for all Client-Broker interactions. 
-```
-cd adveil/cmd/server/
-bash scripts/shuffle.sh 
-    --numreports 4 \
-    --port 8001 \
-    --otherhost localhost \
-    --otherport 8000 \
-    --numprocs 10
-```
-
 
 ## Reproducing the experiments 
 
@@ -43,8 +27,6 @@ Delivery experiment:
 cd adveil/cmd/server/
 bash scripts/experiment1.sh 
     --port 8001 \
-    --otherhost localhost \
-    --otherport 8000 \
     --numprocs 10
 ```
 
@@ -54,8 +36,6 @@ Targeting experiment:
 cd adveil/cmd/server/
 bash scripts/experiment2.sh 
     --port 8001 \
-    --otherhost localhost \
-    --otherport 8000 \
     --numprocs 10
 ```
  
@@ -84,21 +64,6 @@ On the Broker machine:
 cd adveil/cmd/server/
 bash scripts/experiment3.sh \ 
     --port 8000 \
-    --otherhost localhost \
-    --otherport 8001 \
     --numprocs 10 \
     --primary \
 ```
-
-On the CoA machine:
-```
-cd adveil/cmd/server/
-bash scripts/shuffle.sh 
-    --numreports 0 \ 
-    --port 8001 \
-    --otherhost localhost \
-    --otherport 8001 \
-    --numprocs 10 \
-```
-
-

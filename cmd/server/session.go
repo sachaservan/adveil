@@ -1,11 +1,12 @@
 package main
 
 import (
-	"adveil/cmd/api"
-	"adveil/cmd/sealpir"
 	"crypto/rand"
 	"log"
 	"math/big"
+
+	"github.com/sachaservan/adveil/cmd/api"
+	"github.com/sachaservan/adveil/cmd/sealpir"
 )
 
 // ClientSession stores session info for a client request

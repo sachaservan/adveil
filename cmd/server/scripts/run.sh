@@ -1,6 +1,6 @@
 #!/bin/bash
 
-usage() { echo "Usage: $0 [-numads <log number of ads>] [--size <ad size in KB>] [--port <port>] [--otherhost <other server addr>] [--otherport <other server port>] [--numfeatures <dim of feature vectors>] [--numtables <number of tables>] [--numprocs <max num processors>] [--noanns]" 1>&2; exit 1; }
+usage() { echo "Usage: $0 [-numads <log number of ads>] [--size <ad size in KB>] [--port <port>] [--numfeatures <dim of feature vectors>] [--numtables <number of tables>] [--numprocs <max num processors>] [--noanns]" 1>&2; exit 1; }
 
 POSITIONAL=()
 while [[ $# -gt 0 ]]
@@ -28,16 +28,6 @@ case $key in
     shift # past argument
     shift # past value
     ;;
-    --otherhost)
-    OTHERHOST="$2"
-    shift # past argument
-    shift # past value
-    ;;
-    --otherport)
-    OTHERPORT="$2"
-    shift # past argument
-    shift # past value
-    ;;
     --numtables)
     NUMTABLES="$2"
     shift # past argument
@@ -62,7 +52,7 @@ set -- "${POSITIONAL[@]}" # restore positional parameters
 
 
 shift $((OPTIND-1))
-if  [ -z "${NUMADS}" ] || [ -z "${SIZE}" ] || [ -z "${PORT}" ] || [ -z "${OTHERHOST}" ] || [ -z "${NUMFEATURES}" ] || [ -z "${OTHERPORT}" ] || [ -z "${NUMTABLES}" ]; then
+if  [ -z "${NUMADS}" ] || [ -z "${SIZE}" ] || [ -z "${PORT}" ] || [ -z "${NUMFEATURES}" ] || [ -z "${NUMTABLES}" ]; then
     usage
 fi
 
@@ -78,7 +68,6 @@ echo 'Number of Ads: ' $((2**${NUMADS}))
 echo 'Ad size (B):   ' ${SIZE}
 echo 'Num Tables:    ' ${NUMTABLES}
 echo 'Num Features:  ' ${NUMFEATURES}
-echo 'Other server:  ' ${OTHERHOST}:${OTHERPORT}
 echo 'Build ANNS?:   ' ${!NOANNS}
 echo 'Max num processors: ' ${NUMPROCS}
 
@@ -97,8 +86,6 @@ NumTables=${NUMTABLES} # number of tables for NN search
 NumProjections=50 # number of projections for NN search 
 ProjectionWidth=20 # NN projection width (see Datar et al. for deets)
 
-OtherServerAddr=${OTHERHOST}
-OtherServerPort=${OTHERPORT}
 
 # server configuration 
 Port=${PORT}
@@ -107,8 +94,6 @@ NumProcs=${NUMPROCS}
 echo 'Running server on port:' ${PORT}
 
 ./server \
-    --otherserveraddr ${OtherServerAddr} \
-    --otherserverport ${OtherServerPort} \
     --numads ${NumAds} \
     --adsizebytes ${AdSizeBytes} \
     --numfeatures ${NumFeatures} \

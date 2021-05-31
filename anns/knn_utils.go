@@ -1,7 +1,6 @@
 package anns
 
 import (
-	"errors"
 	"math"
 	"sort"
 
@@ -61,19 +60,6 @@ func BruteForceSearchTopKNN(query *vec.Vec, points []*vec.Vec, ids []int, distan
 	return sortedCandidates[:k]
 }
 
-// GetMajorityCandidate return the candidate that is represented by the majority of ids
-// (if such a candidate exists)
-func GetMajorityCandidate(candidates []*vec.Vec, ids []int) (*vec.Vec, error) {
-
-	if len(candidates) == 0 {
-		return nil, errors.New("no candidates provided")
-	}
-
-	sortedCandidates, _ := GetSortedCandidates(candidates, ids)
-
-	return sortedCandidates[0], nil
-}
-
 type tuple struct {
 	a int
 	b int
@@ -84,37 +70,3 @@ type tupleArr []tuple
 func (a tupleArr) Len() int           { return len(a) }
 func (a tupleArr) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a tupleArr) Less(i, j int) bool { return a[i].b < a[j].b }
-
-// GetSortedCandidates return the candidates sorted according to frequency with which they appear
-// high to low in the list; the frequency is determined by examining ids
-func GetSortedCandidates(candidates []*vec.Vec, ids []int) ([]*vec.Vec, error) {
-
-	if len(candidates) == 0 {
-		return nil, errors.New("no candidates provided")
-	}
-
-	indexMap := make(map[int]int)
-	for _, index := range ids {
-		indexMap[index]++
-	}
-
-	// extract unique candidates indices from the indexMap
-	sorted := make([]tuple, 0)
-	for k, v := range indexMap {
-		for i, id := range ids {
-			if k == id {
-				sorted = append(sorted, tuple{a: i, b: v})
-				break
-			}
-		}
-	}
-
-	sort.Sort(sort.Reverse(tupleArr(sorted)))
-
-	sortedCandidates := make([]*vec.Vec, 0)
-	for _, sort := range sorted {
-		sortedCandidates = append(sortedCandidates, candidates[sort.a])
-	}
-
-	return sortedCandidates, nil
-}

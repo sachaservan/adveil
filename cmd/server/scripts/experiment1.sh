@@ -4,7 +4,7 @@
 #
 # example usage: 
 #     cd ~/go/src/adveil/cmd/client
-#     bash scripts/experiment1.sh  --port 8000 --otherhost localhost --otherport 8001 --numprocs 1 
+#     bash scripts/experiment1.sh  --port 8000 --numprocs 1 
 #
 # Run the server on each dataset size and ad size 
 # Note: actual db size is 2^{dbsize}

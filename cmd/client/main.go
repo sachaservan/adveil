@@ -1,7 +1,6 @@
 package main
 
 import (
-	"adveil/anns"
 	"bufio"
 	"crypto/rand"
 	"encoding/gob"
@@ -11,6 +10,8 @@ import (
 	"math/big"
 	"os"
 	"time"
+
+	"github.com/sachaservan/adveil/anns"
 
 	"github.com/alexflint/go-arg"
 )

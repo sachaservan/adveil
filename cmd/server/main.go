@@ -1,16 +1,15 @@
 package main
 
 import (
-	"adveil/anns"
-	"adveil/token"
 	"encoding/gob"
-	"encoding/json"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
 	"net/rpc"
 	"time"
+
+	"github.com/sachaservan/adveil/anns"
+	"github.com/sachaservan/adveil/token"
 
 	"github.com/alexflint/go-arg"
 )
@@ -29,9 +28,6 @@ func main() {
 
 	// command-line arguments to the server
 	var args struct {
-		OtherServerAddr string `default:"localhost"`
-		OtherServerPort string `default:"8080"`
-
 		// port on which to run
 		Port string `default:"8000"`
 
@@ -79,8 +75,6 @@ func main() {
 
 	// make the server struct
 	server := &Server{
-		OtherServerAddr:   args.OtherServerAddr,
-		OtherServerPort:   args.OtherServerPort,
 		Sessions:          make(map[int64]*ClientSession),
 		NumProcs:          args.NumProcs,
 		KnnParams:         params,
@@ -94,49 +88,6 @@ func main() {
 	go func(server *Server) {
 		// hack to ensure server starts before this completes
 		time.Sleep(100 * time.Millisecond)
-
-		if args.JustShuffle {
-
-			log.Printf("[Server]: initializing ElGamal")
-			server.initElGamal()
-
-			if args.Primary {
-				log.Printf("[Server]: acting as primary server")
-				log.Printf("[Server]: initializing reports")
-
-				// TODO: replace m with report payload encoded as EC point
-				m := server.RPk.RandomPoint()
-				reports := make([]*EncryptedReport, args.NumReports)
-				for i := 0; i < args.NumReports; i++ {
-					reports[i] = &EncryptedReport{}
-					reports[i].C = server.RPk.Encrypt(m)
-					reports[i].Token = server.genFakeReportingToken() // for the report validity
-				}
-
-				var result *MetricsExperiment
-				for i := 0; i < args.NumTrials; i++ {
-					log.Printf("[Server]: shuffling reports")
-					trialRes := server.runMetricsExperiment(reports)
-					if i == 0 {
-						result = trialRes
-					} else {
-						result.DecryptionProcessingMS = append(result.DecryptionProcessingMS, trialRes.DecryptionProcessingMS...)
-						result.ShuffleProcessingMS = append(result.ShuffleProcessingMS, trialRes.ShuffleProcessingMS...)
-						result.TokenProcessingMS = append(result.TokenProcessingMS, trialRes.TokenProcessingMS...)
-					}
-				}
-				// write the result of the evalaution to the specified file
-				experimentJSON, _ := json.MarshalIndent(result, "", " ")
-				ioutil.WriteFile(args.ExperimentSaveFile, experimentJSON, 0644)
-
-				// kill the server
-				server.Killed = true
-			} else {
-				log.Printf("[Server]: ready; waiting for other server")
-			}
-
-			return
-		}
 
 		if server.ANNS {
 			log.Println("[Server]: loading feature vectors")

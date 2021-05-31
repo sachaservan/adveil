@@ -1,9 +1,6 @@
 package main
 
 import (
-	"adveil/anns"
-	"adveil/cmd/api"
-	"adveil/cmd/sealpir"
 	"bytes"
 	"encoding/gob"
 	"fmt"
@@ -11,11 +8,15 @@ import (
 	"net/rpc"
 	"sync"
 
+	"github.com/sachaservan/adveil/anns"
+	"github.com/sachaservan/adveil/cmd/api"
+	"github.com/sachaservan/adveil/cmd/sealpir"
+
 	"github.com/sachaservan/vec"
 )
 
 // RuntimeExperiment captures all the information needed to
-// evalaute a live deploytment
+// evaluate a live deployment
 type RuntimeExperiment struct {
 	NumAds                  int     `json:"num_ads"`
 	NumFeatures             int     `json:"num_features"`
@@ -34,7 +35,6 @@ type RuntimeExperiment struct {
 }
 
 const BrokerServerID int = 0
-const CoAServerID int = 1
 
 // Client is used to store all relevant client information
 type Client struct {
@@ -241,15 +241,15 @@ func (client *Client) QueryBuckets() ([][]int, int64, int64) {
 
 	// recover the result
 	// TODO: actually use the recovered result(s) to recover the NN
-	for tableIndex := 0; tableIndex < client.sessionParams.NumTables; tableIndex++ {
+	// for tableIndex := 0; tableIndex < client.sessionParams.NumTables; tableIndex++ {
 
-		h := client.tableHashFunctions[tableIndex]
-		elemIndex := h.Digest(client.profile).Int64()
+	// 	h := client.tableHashFunctions[tableIndex]
+	// 	elemIndex := h.Digest(client.profile).Int64()
 
-		c := client.tablePIRClients[tableIndex]
-		offset := c.GetFVOffset(elemIndex)
-		c.Recover(qres.Answers[tableIndex][0], offset)
-	}
+	// 	c := client.tablePIRClients[tableIndex]
+	// 	offset := c.GetFVOffset(elemIndex)
+	// 	c.Recover(qres.Answers[tableIndex][0], offset)
+	// }
 
 	margs := &api.MappingQueryArgs{}
 	mres := &api.MappingQueryResponse{}
@@ -266,13 +266,13 @@ func (client *Client) QueryBuckets() ([][]int, int64, int64) {
 		panic("failed to make RPC call")
 	}
 
-	for i := 0; i < client.sessionParams.IDtoVecRedundancy; i++ {
-		c := client.idToVecPIRClients[i]
-		// TODO: make this a batch PIR recover
-		index := int64(0)
-		offset := c.GetFVOffset(index) // retrieve
-		c.Recover(mres.Answers[i][0], offset)
-	}
+	// for i := 0; i < client.sessionParams.IDtoVecRedundancy; i++ {
+	// 	c := client.idToVecPIRClients[i]
+	// 	// TODO: make this a batch PIR recover
+	// 	index := int64(0)
+	// 	offset := c.GetFVOffset(index) // retrieve
+	// 	c.Recover(mres.Answers[i][0], offset)
+	// }
 
 	bandwidth := getSizeInBytes(qargs) + getSizeInBytes(qres) + getSizeInBytes(margs) + getSizeInBytes(mres)
 	serverMS := qres.StatsTotalTimeInMS + mres.StatsTotalTimeInMS

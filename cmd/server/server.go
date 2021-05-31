@@ -1,30 +1,27 @@
 package main
 
 import (
-	"adveil/anns"
-	"adveil/cmd/api"
-	"adveil/cmd/sealpir"
-	"adveil/elgamal"
-	"crypto/elliptic"
 	"log"
 	"math"
 	"net"
-	"net/rpc"
 	"sync"
 	"time"
+
+	"github.com/sachaservan/adveil/anns"
+	"github.com/sachaservan/adveil/cmd/api"
+	"github.com/sachaservan/adveil/cmd/sealpir"
+	"github.com/sachaservan/adveil/token"
 
 	"github.com/sachaservan/vec"
 )
 
 // Server maintains all the necessary server state
 type Server struct {
-	OtherServerAddr string
-	OtherServerPort string
-	Sessions        map[int64]*ClientSession
-	NumProcs        int
-	KnnParams       *anns.LSHParams
-	KnnValues       []*vec.Vec
-	Knn             *anns.LSHBasedKNN
+	Sessions  map[int64]*ClientSession
+	NumProcs  int
+	KnnParams *anns.LSHParams
+	KnnValues []*vec.Vec
+	Knn       *anns.LSHBasedKNN
 
 	IDtoVecRedundancy int                       // redundancy required for batch-PIR accuracy
 	IDtoVecDB         map[int]*sealpir.Database // each database is a mapping of ID (index) to vector
@@ -40,8 +37,8 @@ type Server struct {
 	ANNS bool // set to false to not build ANNS data structure
 
 	// reporting public/secret keys
-	RPk *elgamal.PublicKey
-	RSk *elgamal.SecretKey
+	RPk *token.PublicKey
+	RSk *token.SecretKey
 
 	Listener net.Listener
 	Ready    bool // true when server has initialized
@@ -214,8 +211,8 @@ func (server *Server) buildKNNDataStructure() {
 	vecBits := server.KnnValues[0].Size() * 8
 	// contents of bucket
 	bucketBits := vecIDBits * server.KnnParams.BucketSize
-	// CoA signature on the bucket (one curve element)
-	sigBits := 256
+	// RSA accumulator proof on the bucket contents (one element)
+	sigBits := 2048
 	// divide by 8 to convert to bytes
 	bytesPerBucket := (bucketBits + sigBits) / 8
 	// divide by 8 to convert to bytes
@@ -259,33 +256,6 @@ func (server *Server) buildKNNDataStructure() {
 		server.IDtoVecDB[r] = db
 	}
 
-}
-
-// initialize ElGamal keys used in the shuffle
-func (server *Server) initElGamal() {
-	curve := elliptic.P256()
-	server.RPk, server.RSk = elgamal.KeyGen(curve)
-}
-
-// send an RPC request to the master, wait for the response
-func (server *Server) call(rpcname string, args interface{}, reply interface{}) bool {
-
-	cli, err := rpc.DialHTTP("tcp", server.OtherServerAddr+":"+server.OtherServerPort)
-	if err != nil {
-		log.Printf("RPC error %v\n", err)
-		return false
-	}
-
-	defer cli.Close()
-
-	err = cli.Call(rpcname, args, reply)
-	if err == nil {
-		return true
-	}
-
-	log.Printf("RPC error %v\n", err)
-
-	return false
 }
 
 func newError(err error) api.Error {

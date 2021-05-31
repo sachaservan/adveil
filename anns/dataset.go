@@ -1,28 +1,22 @@
 package anns
 
 import (
-	"math"
 	"math/rand"
 
 	"github.com/sachaservan/vec"
 )
 
-const trainDatasetSuffix = "_train.csv"
-const testDatasetSuffix = "_test.csv"
-const neighborsDatasetSuffix = "_neighbors.csv"
-
 // GenerateRandomDataWithPlantedQueries generates random data
-// with specified parameters and plants datapoints around queries.
+// with specified parameters and plants datapoints around queries:
 //
 // num: specifies the number of values to generate in total
-// dim: dinension of the data vectors generated
+// dim: dimension of the data being generated
 // valueMin: min value (int) in each component of the vector
 // valueMax: maximum value (int) in each component of the vector
 // numQueries: number of queries to generate over the data
 // numNN: min number of "planted" neighbors for each query
+// metric: distance metric used to compute a neighbor
 // maxNeighborDistance: maximum euclidean distance between each query
-// minDistanceThreshold: minimum distance to all non-neighbor points from every query
-// and planted neighbors
 //
 // returns (data, queries, planted)
 func GenerateRandomDataWithPlantedQueries(
@@ -38,21 +32,21 @@ func GenerateRandomDataWithPlantedQueries(
 	// generate random valued vectors
 	values := make([]*vec.Vec, num+numQueries*numNN)
 
-	for i := range values {
+	for i := 0; i < num; i++ {
 		values[i] = vec.NewRandomVec(dim, valueMin, valueMax)
 	}
 
 	queries := make([]*vec.Vec, numQueries)
-	plantedIdxs := make([][]int, numQueries*numNN)
+	plantedIdxs := make([][]int, numQueries)
 
 	for j := 0; j < numQueries; j++ {
 		queries[j] = vec.NewRandomVec(dim, valueMin, valueMax)
-		plantedIdxs[j*numNN] = make([]int, numNN)
+		plantedIdxs[j] = make([]int, numNN)
 
 		for k := 0; k < numNN; k++ {
 			neighbor := PerturbVector(queries[j].Copy(), metric, maxNeighborDistance)
-			values = append(values, neighbor)
-			plantedIdxs[j*numNN][k] = len(values) - 1
+			values[num+j*numNN+k] = neighbor
+			plantedIdxs[j][k] = len(values) - 1
 		}
 	}
 
@@ -63,21 +57,9 @@ func PerturbVector(v *vec.Vec, metric DistanceMetric, maxDistance float64) *vec.
 
 	switch metric {
 	case EuclideanDistance:
-		r := math.Sqrt(maxDistance * maxDistance / float64(v.Size()))
-
-		// fixed-point approximation hack; scale by 1000.0
-		fp := int(r * 1000.0)
-
-		for coord := 0; coord < v.Size(); coord++ {
-			shift := float64(rand.Intn(fp)) / 1000.0
-
-			if rand.Intn(2) == 0 {
-				shift *= -1
-			}
-
-			v.AddToCoord(shift, coord)
-		}
-
+		r := getRandomUnitVector(v.Size())
+		r.Scale(maxDistance)
+		v.Add(r)
 		break
 
 	case HammingDistance:
@@ -90,4 +72,14 @@ func PerturbVector(v *vec.Vec, metric DistanceMetric, maxDistance float64) *vec.
 	}
 
 	return v
+}
+
+func getRandomUnitVector(dim int) *vec.Vec {
+
+	coords := make([]float64, dim)
+	for i := 0; i < dim; i++ {
+		coords[i] = rand.NormFloat64()
+	}
+
+	return vec.NewVec(coords).Normalize()
 }

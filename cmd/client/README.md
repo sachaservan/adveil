@@ -4,7 +4,7 @@ Currently, the client is configured to:
 1) query the ANNS data structure held by the server
 2) retrieve an ad from the server (either via PIR or directly with no privacy)
 
-First, configure ```adveil/cmd/client/scripts/run.sh``` with the Broker and the CoA's IP addresses. 
+First, configure ```adveil/cmd/client/scripts/run.sh``` with the Broker's IP address. 
 
 Then run the client:
 ```

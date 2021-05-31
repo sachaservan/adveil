@@ -46,7 +46,7 @@ make
 1) On the Broker machine:
 ```
 cd adveil/cmd/server
-bash scripts/[EXPERIMENT SCRIPT] --port 8000 --otherhost localhost --otherport 8001
+bash scripts/[EXPERIMENT SCRIPT] --port 8000
 ```
 
 2) On the client machine:
