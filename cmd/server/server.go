@@ -205,6 +205,7 @@ func (server *Server) buildKNNDataStructure() {
 	numBuckets := int(len(server.KnnValues))
 
 	var wg sync.WaitGroup
+	var mu sync.Mutex
 
 	// (optimization): instead of computing a Merkle proof over each hash table
 	// just send back the counts for each bucket; coupled with the Merkle proofs
@@ -216,7 +217,9 @@ func (server *Server) buildKNNDataStructure() {
 		wg.Add(1)
 		go func(t int) {
 			defer wg.Done()
+			mu.Lock()
 			server.BucketCountProof[t] = make([]uint8, numBuckets)
+			mu.Unlock()
 		}(t)
 	}
 	wg.Wait()
@@ -260,8 +263,10 @@ func (server *Server) buildKNNDataStructure() {
 		go func(t int) {
 			defer wg.Done()
 			_, db := sealpir.InitRandomDB(params)
+			mu.Lock()
 			server.TableParams[t] = params
 			server.TableDBs[t] = db
+			mu.Unlock()
 		}(t)
 	}
 	wg.Wait()
@@ -284,8 +289,10 @@ func (server *Server) buildKNNDataStructure() {
 		go func(t int) {
 			defer wg.Done()
 			_, db := sealpir.InitRandomDB(params)
+			mu.Lock()
 			server.IDtoVecParams[t] = params
 			server.IDtoVecDB[t] = db
+			mu.Unlock()
 		}(t)
 	}
 
