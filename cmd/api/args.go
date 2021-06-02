@@ -33,6 +33,7 @@ type BucketQueryArgs struct {
 type BucketQueryResponse struct {
 	Error              Error
 	Answers            map[int][]*sealpir.Answer
+	BucketCountProof   map[int][]uint8
 	StatsTotalTimeInMS int64
 }
 
@@ -73,7 +74,6 @@ type InitSessionResponse struct {
 	TableHashFunctions map[int]*anns.LSH                 // LSH functions used to query tables
 	TablePIRParams     map[int]*sealpir.SerializedParams // SealPIR params for each hash table
 	IDtoVecPIRParams   map[int]*sealpir.SerializedParams // SealPIR params for mappings
-	IDtoVecRedundancy  int                               // redundancy for batch PIR
 
 	AdPIRParams *sealpir.SerializedParams // SealPIR params for the ad database
 
@@ -96,10 +96,9 @@ type WaitForExperimentResponse struct{}
 // SessionParameters contains all the metadata information
 // needed for a client to issue PIR queries
 type SessionParameters struct {
-	SessionID         int64
-	NumFeatures       int // number of features in each feature vector
-	NumAds            int // number of ads in total
-	AdSizeKB          int // size of each ad
-	NumTables         int // number of hash tables
-	IDtoVecRedundancy int // redundancy for batch PIR
+	SessionID   int64
+	NumFeatures int // number of features in each feature vector
+	NumAds      int // number of ads in total
+	AdSizeKB    int // size of each ad
+	NumTables   int // number of hash tables
 }

@@ -121,11 +121,10 @@ func (client *Client) InitSession() {
 	client.adPIRClient = adC
 
 	client.sessionParams = &api.SessionParameters{
-		SessionID:         res.SessionID,
-		NumFeatures:       res.NumFeatures,
-		NumTables:         res.NumTables,
-		NumAds:            res.NumAds,
-		IDtoVecRedundancy: res.IDtoVecRedundancy,
+		SessionID:   res.SessionID,
+		NumFeatures: res.NumFeatures,
+		NumTables:   res.NumTables,
+		NumAds:      res.NumAds,
 	}
 
 	// TODO: this is kind of a hack that is only ok for experiments
@@ -255,7 +254,7 @@ func (client *Client) QueryBuckets() ([][]int, int64, int64) {
 	mres := &api.MappingQueryResponse{}
 
 	margs.Queries = make(map[int]*sealpir.Query)
-	for i := 0; i < client.sessionParams.IDtoVecRedundancy; i++ {
+	for i := 0; i < client.sessionParams.NumTables; i++ {
 		c := client.idToVecPIRClients[i]
 		index := c.GetFVIndex(0)
 		query := c.GenQuery(index)

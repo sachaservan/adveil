@@ -50,7 +50,6 @@ func (server *Server) InitSession(args api.InitSessionArgs, reply *api.InitSessi
 		reply.TablePIRParams = sealpir.SerializeParamsMap(server.TableParams)
 		reply.TableHashFunctions = server.Knn.Hashes
 		reply.IDtoVecPIRParams = sealpir.SerializeParamsMap(server.IDtoVecParams)
-		reply.IDtoVecRedundancy = server.IDtoVecRedundancy
 	}
 
 	return nil
@@ -64,9 +63,6 @@ func (server *Server) SetPIRKeys(args api.SetKeysArgs, reply *api.SetKeysRespons
 
 	for i := 0; i < server.KnnParams.NumTables; i++ {
 		server.TableDBs[i].Server.SetGaloisKeys(args.TableDBGaloisKeys[i])
-	}
-
-	for i := 0; i < server.IDtoVecRedundancy; i++ {
 		server.IDtoVecDB[i].Server.SetGaloisKeys(args.IDtoVecKeys[i])
 	}
 
@@ -78,11 +74,9 @@ func (server *Server) TerminateSession(args *api.TerminateSessionArgs, reply *ap
 	server.Killed = true
 
 	server.AdDb.Server.Free()
-	server.AdDb.Server.Params.Free()
 
 	for _, db := range server.TableDBs {
 		db.Server.Free()
-		db.Server.Params.Free()
 	}
 
 	return nil

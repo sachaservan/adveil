@@ -23,12 +23,13 @@ type Server struct {
 	KnnValues []*vec.Vec
 	Knn       *anns.LSHBasedKNN
 
-	IDtoVecRedundancy int                       // redundancy required for batch-PIR accuracy
-	IDtoVecDB         map[int]*sealpir.Database // each database is a mapping of ID (index) to vector
-	IDtoVecParams     map[int]*sealpir.Params
+	IDtoVecDB     map[int]*sealpir.Database // each database is a mapping of ID (index) to vector
+	IDtoVecParams map[int]*sealpir.Params
 
 	TableDBs    map[int]*sealpir.Database // array of databases; one for each hash table
 	TableParams map[int]*sealpir.Params   // array of SealPIR params; one for each hash table
+
+	BucketCountProof map[int][]uint8 // bucket counts for each hash table
 
 	AdDb   *sealpir.Database // database of ads
 	AdSize int
@@ -63,6 +64,7 @@ func (server *Server) PrivateBucketQuery(args *api.BucketQueryArgs, reply *api.B
 	log.Printf("[Server]: received request to PrivateBucketQuery\n")
 
 	reply.Answers = make(map[int][]*sealpir.Answer)
+	reply.BucketCountProof = server.BucketCountProof
 
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -105,7 +107,7 @@ func (server *Server) PrivateMappingQuery(args *api.MappingQueryArgs, reply *api
 
 	var wg sync.WaitGroup
 	var mu sync.Mutex
-	for m := 0; m < server.IDtoVecRedundancy; m++ {
+	for i := 0; i < server.KnnParams.NumTables; i++ {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
@@ -121,7 +123,7 @@ func (server *Server) PrivateMappingQuery(args *api.MappingQueryArgs, reply *api
 			reply.Answers[i] = res
 			mu.Unlock()
 
-		}(m)
+		}(i)
 	}
 
 	wg.Wait()
@@ -202,19 +204,34 @@ func (server *Server) buildKNNDataStructure() {
 	numTables := server.KnnParams.NumTables
 	numBuckets := int(len(server.KnnValues))
 
+	// (optimization): instead of computing a Merkle proof over each hash table
+	// just send back the counts for each bucket; coupled with the Merkle proofs
+	// for the vectors and the fact that checking bucket membership can be performed
+	// using the LSH functions, this saves computation time (and communication)
+	// in most practical cases as it avoids PIR over Merkle proofs
+	server.BucketCountProof = make(map[int][]uint8)
+	for t := 0; t < numTables; t++ {
+		server.BucketCountProof[t] = make([]uint8, numBuckets)
+	}
+
 	// compute the min number of bytes needed to represent a bucket
 	// size of each vector is dim * 8 in bits (assuming 8 bits per entry)
 
 	// size of a feature vector ID
 	vecIDBits := int(math.Ceil(math.Log2(float64(len(server.KnnValues)))))
+
 	// size of each feature vector
-	vecBits := server.KnnValues[0].Size() * 8
+	vecBits := server.KnnValues[0].Size() * 8 // 1 byte per coordinate
+
 	// contents of bucket
 	bucketBits := vecIDBits * server.KnnParams.BucketSize
-	// RSA accumulator proof on the bucket contents (one element)
-	sigBits := 2048
+
+	// MerkleProof for N elements
+	sigBits := vecIDBits * 256 // 256 bits for SHA256 hash
+
 	// divide by 8 to convert to bytes
-	bytesPerBucket := (bucketBits + sigBits) / 8
+	bytesPerBucket := (bucketBits) / 8
+
 	// divide by 8 to convert to bytes
 	bytesPerMapping := (vecBits + sigBits) / 8
 
@@ -244,16 +261,16 @@ func (server *Server) buildKNNDataStructure() {
 		sealpir.DefaultSealPolyDegree,
 		sealpir.DefaultSealLogt,
 		sealpir.DefaultSealRecursionDim,
-		server.KnnParams.NumTables, // divide database into NumTables separate databases
+		server.NumProcs, // divide database into NumTables separate databases
 	)
 
 	server.IDtoVecDB = make(map[int]*sealpir.Database)
 	server.IDtoVecParams = make(map[int]*sealpir.Params)
 
-	for r := 0; r < server.IDtoVecRedundancy; r++ {
+	for t := 0; t < numTables; t++ {
 		_, db := sealpir.InitRandomDB(params)
-		server.IDtoVecParams[r] = params
-		server.IDtoVecDB[r] = db
+		server.IDtoVecParams[t] = params
+		server.IDtoVecDB[t] = db
 	}
 
 }

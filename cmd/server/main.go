@@ -75,14 +75,12 @@ func main() {
 
 	// make the server struct
 	server := &Server{
-		Sessions:          make(map[int64]*ClientSession),
-		NumProcs:          args.NumProcs,
-		KnnParams:         params,
-		Ready:             false,
-		NumAds:            args.NumAds,
-		AdSize:            args.AdSizeBytes,
-		ANNS:              !args.NoANNS,
-		IDtoVecRedundancy: 3, // TODO: magic constant
+		Sessions:  make(map[int64]*ClientSession),
+		KnnParams: params,
+		Ready:     false,
+		NumAds:    args.NumAds,
+		AdSize:    args.AdSizeBytes,
+		ANNS:      !args.NoANNS,
 	}
 
 	go func(server *Server) {
