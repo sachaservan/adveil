@@ -81,6 +81,7 @@ func main() {
 		NumAds:    args.NumAds,
 		AdSize:    args.AdSizeBytes,
 		ANNS:      !args.NoANNS,
+		NumProcs:  args.NumProcs,
 	}
 
 	go func(server *Server) {

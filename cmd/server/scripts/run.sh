@@ -69,7 +69,7 @@ echo 'Ad size (B):   ' ${SIZE}
 echo 'Num Tables:    ' ${NUMTABLES}
 echo 'Num Features:  ' ${NUMFEATURES}
 echo 'Build ANNS?:   ' ${!NOANNS}
-echo 'Max num processors: ' ${NUMPROCS}
+echo 'Parallelism:   ' ${NUMPROCS}
 
 # build the server 
 go build -o ./server ./ 
