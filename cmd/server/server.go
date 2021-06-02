@@ -113,8 +113,8 @@ func (server *Server) PrivateMappingQuery(args *api.MappingQueryArgs, reply *api
 			defer wg.Done()
 
 			mu.Lock()
-			query := args.Queries[i]
-			db := server.IDtoVecDB[i]
+			query := args.Queries[0]
+			db := server.IDtoVecDB[0]
 			mu.Unlock()
 
 			res := db.Server.GenAnswer(query)
@@ -284,19 +284,9 @@ func (server *Server) buildKNNDataStructure() {
 	server.IDtoVecDB = make(map[int]*sealpir.Database)
 	server.IDtoVecParams = make(map[int]*sealpir.Params)
 
-	for t := 0; t < numTables; t++ {
-		wg.Add(1)
-		go func(t int) {
-			defer wg.Done()
-			_, db := sealpir.InitRandomDB(params)
-			mu.Lock()
-			server.IDtoVecParams[t] = params
-			server.IDtoVecDB[t] = db
-			mu.Unlock()
-		}(t)
-	}
-
-	wg.Wait()
+	_, db := sealpir.InitRandomDB(params)
+	server.IDtoVecParams[0] = params
+	server.IDtoVecDB[0] = db
 }
 
 func newError(err error) api.Error {

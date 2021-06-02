@@ -254,8 +254,9 @@ func (client *Client) QueryBuckets() ([][]int, int64, int64) {
 	mres := &api.MappingQueryResponse{}
 
 	margs.Queries = make(map[int]*sealpir.Query)
+
+	c := client.idToVecPIRClients[0]
 	for i := 0; i < client.sessionParams.NumTables; i++ {
-		c := client.idToVecPIRClients[i]
 		index := c.GetFVIndex(0)
 		query := c.GenQuery(index)
 		margs.Queries[i] = query

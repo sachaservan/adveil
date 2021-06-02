@@ -61,9 +61,10 @@ func (server *Server) SetPIRKeys(args api.SetKeysArgs, reply *api.SetKeysRespons
 
 	server.AdDb.Server.SetGaloisKeys(args.AdDBGaloisKeys)
 
+	server.IDtoVecDB[0].Server.SetGaloisKeys(args.IDtoVecKeys[0])
+
 	for i := 0; i < server.KnnParams.NumTables; i++ {
 		server.TableDBs[i].Server.SetGaloisKeys(args.TableDBGaloisKeys[i])
-		server.IDtoVecDB[i].Server.SetGaloisKeys(args.IDtoVecKeys[i])
 	}
 
 	return nil
