@@ -204,6 +204,8 @@ func (server *Server) buildKNNDataStructure() {
 	numTables := server.KnnParams.NumTables
 	numBuckets := int(len(server.KnnValues))
 
+	var wg sync.WaitGroup
+
 	// (optimization): instead of computing a Merkle proof over each hash table
 	// just send back the counts for each bucket; coupled with the Merkle proofs
 	// for the vectors and the fact that checking bucket membership can be performed
@@ -211,8 +213,13 @@ func (server *Server) buildKNNDataStructure() {
 	// in most practical cases as it avoids PIR over Merkle proofs
 	server.BucketCountProof = make(map[int][]uint8)
 	for t := 0; t < numTables; t++ {
-		server.BucketCountProof[t] = make([]uint8, numBuckets)
+		wg.Add(1)
+		go func(t int) {
+			defer wg.Done()
+			server.BucketCountProof[t] = make([]uint8, numBuckets)
+		}(t)
 	}
+	wg.Wait()
 
 	// compute the min number of bytes needed to represent a bucket
 	// size of each vector is dim * 8 in bits (assuming 8 bits per entry)
@@ -249,10 +256,15 @@ func (server *Server) buildKNNDataStructure() {
 	)
 
 	for t := 0; t < numTables; t++ {
-		_, db := sealpir.InitRandomDB(params)
-		server.TableParams[t] = params
-		server.TableDBs[t] = db
+		wg.Add(1)
+		go func(t int) {
+			defer wg.Done()
+			_, db := sealpir.InitRandomDB(params)
+			server.TableParams[t] = params
+			server.TableDBs[t] = db
+		}(t)
 	}
+	wg.Wait()
 
 	// SealPIR database for the mapping from ID to feature vector
 	params = sealpir.InitParams(
@@ -268,11 +280,16 @@ func (server *Server) buildKNNDataStructure() {
 	server.IDtoVecParams = make(map[int]*sealpir.Params)
 
 	for t := 0; t < numTables; t++ {
-		_, db := sealpir.InitRandomDB(params)
-		server.IDtoVecParams[t] = params
-		server.IDtoVecDB[t] = db
+		wg.Add(1)
+		go func(t int) {
+			defer wg.Done()
+			_, db := sealpir.InitRandomDB(params)
+			server.IDtoVecParams[t] = params
+			server.IDtoVecDB[t] = db
+		}(t)
 	}
 
+	wg.Wait()
 }
 
 func newError(err error) api.Error {
