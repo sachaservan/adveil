@@ -211,7 +211,8 @@ func (server *Server) buildKNNDataStructure() {
 	// just send back the counts for each bucket; coupled with the Merkle proofs
 	// for the vectors and the fact that checking bucket membership can be performed
 	// using the LSH functions, this saves computation time (and communication)
-	// in most practical cases as it avoids PIR over Merkle proofs
+	// in most practical cases as it avoids PIR over Merkle proofs.
+	// See paper for details.
 	server.BucketCountProof = make(map[int][]uint8)
 	for t := 0; t < numTables; t++ {
 		wg.Add(1)
@@ -237,7 +238,10 @@ func (server *Server) buildKNNDataStructure() {
 	bucketBits := vecIDBits * server.KnnParams.BucketSize
 
 	// MerkleProof for N elements
-	sigBits := vecIDBits * 256 // 256 bits for SHA256 hash
+	// sigBits := vecIDBits * 256 // 256 bits for SHA256 hash
+
+	// RSA group signature for N elements (i.e., constant)
+	sigBits := 2048
 
 	// divide by 8 to convert to bytes
 	bytesPerBucket := (bucketBits) / 8

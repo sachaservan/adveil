@@ -24,7 +24,8 @@ type RuntimeExperiment struct {
 	NumTables               int     `json:"num_tables"`
 	GetBucketServerMS       []int64 `json:"get_bucket_server_ms"`
 	GetBucketClientMS       []int64 `json:"get_bucket_client_ms"`
-	GetBucketBandwidthB     []int64 `json:"get_bucket_bandwidth_bytes"`
+	GetBucketBandwidthDownB []int64 `json:"get_bucket_bandwidth_down_bytes"`
+	GetBucketBandwidthUpB   []int64 `json:"get_bucket_bandwidth_up_bytes"`
 	GetAdServerMS           []int64 `json:"get_ad_server_ms"`
 	GetAdClientMS           []int64 `json:"get_ad_client_ms"`
 	GetAdBandwidthB         []int64 `json:"get_ad_bandwidth_bytes"`
@@ -214,7 +215,7 @@ func (client *Client) QueryAd(index int64) ([]byte, int64, int64) {
 // QueryBuckets privately queries LSH tables held by the server
 // by first hashing the client's profile vector and then retrieving the corresponding
 // hash from the hash table
-func (client *Client) QueryBuckets() ([][]int, int64, int64) {
+func (client *Client) QueryBuckets() ([][]int, int64, int64, int64) {
 
 	qargs := &api.BucketQueryArgs{}
 	qres := &api.BucketQueryResponse{}
@@ -266,7 +267,7 @@ func (client *Client) QueryBuckets() ([][]int, int64, int64) {
 		panic("failed to make RPC call")
 	}
 
-	// for i := 0; i < client.sessionParams.IDtoVecRedundancy; i++ {
+	// for i := 0; i < client.sessionParams.NumTables; i++ {
 	// 	c := client.idToVecPIRClients[i]
 	// 	// TODO: make this a batch PIR recover
 	// 	index := int64(0)
@@ -274,10 +275,11 @@ func (client *Client) QueryBuckets() ([][]int, int64, int64) {
 	// 	c.Recover(mres.Answers[i][0], offset)
 	// }
 
-	bandwidth := getSizeInBytes(qargs) + getSizeInBytes(qres) + getSizeInBytes(margs) + getSizeInBytes(mres)
+	bandwidthUp := getSizeInBytes(qargs) + getSizeInBytes(margs)
+	bandwidthDown := getSizeInBytes(qres) + getSizeInBytes(mres)
 	serverMS := qres.StatsTotalTimeInMS + mres.StatsTotalTimeInMS
 
-	return nil, serverMS, bandwidth
+	return nil, serverMS, bandwidthUp, bandwidthDown
 }
 
 func getSizeInBytes(s interface{}) int64 {
