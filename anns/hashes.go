@@ -1,9 +1,7 @@
 package anns
 
 import (
-	"bytes"
 	crand "crypto/rand"
-	"encoding/gob"
 	"errors"
 	"math"
 	"math/big"
@@ -27,28 +25,11 @@ type UniversalHash struct {
 	n  *gmp.Int
 }
 
-type universalHashMarshallWrapper struct {
-	R1 *gmp.Int
-	R2 *gmp.Int
-	N  *gmp.Int
-}
-
 // GaussianHash is locality sensitive with respect to L2 distance
 type GaussianHash struct {
 	a *vec.Vec // fixed-point encoded vector of gaussian random variables
 	b float64  // uniformly random value in the range [0, r]
 	r float64
-}
-
-type gaussianHashMarshallWrapper struct {
-	A *vec.Vec // fixed-point encoded vector of gaussian random variables
-	B float64  // uniformly random value in the range [0, r]
-	R float64
-}
-
-// HammingHash is locality sensitive with respect to hamming distance
-type HammingHash struct {
-	a *vec.Vec // one-hot vector "selecting" the bit when taking inner prod
 }
 
 // NewGaussianHash generates a new locality sensitive Gaussian hash for L2 distance metric
@@ -65,22 +46,6 @@ func NewGaussianHash(dim int, r float64) *GaussianHash {
 
 	return &GaussianHash{
 		vec.NewVec(a), b, r,
-	}
-}
-
-// NewHammingHash generates a new locality sensitive hash for hamming distance
-func NewHammingHash(dim int) *HammingHash {
-
-	a := make([]float64, dim)
-	i := rand.Intn(dim) // pick a random coordinate
-	for j := 0; j < len(a); j++ {
-		a[j] = 0
-	}
-
-	a[i] = 1
-
-	return &HammingHash{
-		vec.NewVec(a),
 	}
 }
 
@@ -155,26 +120,6 @@ func (h *GaussianHash) StringDigest(v *vec.Vec) string {
 	return string(h.Digest(v).Bytes())
 }
 
-// Digest returns the evaluation of the hash on v
-func (h *HammingHash) Digest(v *vec.Vec) *gmp.Int {
-
-	// compute the inner product which selects
-	// a random component of v (a is a random one-hot vector)
-	res, _ := h.a.Dot(v)
-
-	return gmp.NewInt(int64(res))
-}
-
-// StringDigest returns the evaluation of the hash on v encoded as a string
-func (h *HammingHash) StringDigest(v *vec.Vec) string {
-	return string(h.Digest(v).Bytes())
-}
-
-// GetHashParameters returns the hamming hash parameters
-func (h *HammingHash) GetHashParameters() *vec.Vec {
-	return h.a
-}
-
 // Digest returns the evaluation of the hash on s
 func (h *UniversalHash) Digest(s *gmp.Int) *gmp.Int {
 	sInt := gmp.NewInt(0)
@@ -205,94 +150,4 @@ func (h *UniversalHash) GetHashParameters() (*gmp.Int, *gmp.Int, *gmp.Int) {
 // StringDigest returns the evaluation of the hash on s encoded as a string
 func (h *UniversalHash) StringDigest(s *gmp.Int) string {
 	return string(h.Digest(s).Bytes())
-}
-
-// MarshalBinary is needed in order to encode/decode
-// ciphertexts type since (for now) ciphertext
-// can only be converted to bytes and back
-func (h *UniversalHash) MarshalBinary() ([]byte, error) {
-
-	// wrap struct
-	w := universalHashMarshallWrapper{
-		h.r1,
-		h.r2,
-		h.n,
-	}
-
-	// use default gob encoder
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
-	if err := enc.Encode(w); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
-}
-
-// UnmarshalBinary is needed in order to encode/decode
-// ciphertexts type since (for now) ciphertext
-// can only be converted to bytes and back
-func (h *UniversalHash) UnmarshalBinary(data []byte) error {
-
-	if len(data) == 0 {
-		return nil
-	}
-
-	w := universalHashMarshallWrapper{}
-
-	reader := bytes.NewReader(data)
-	dec := gob.NewDecoder(reader)
-	if err := dec.Decode(&w); err != nil {
-		return err
-	}
-
-	h.r1 = w.R1
-	h.r2 = w.R2
-	h.n = w.N
-
-	return nil
-}
-
-// MarshalBinary is needed in order to encode/decode
-// ciphertexts type since (for now) ciphertext
-// can only be converted to bytes and back
-func (h *GaussianHash) MarshalBinary() ([]byte, error) {
-
-	// wrap struct
-	w := gaussianHashMarshallWrapper{
-		h.a,
-		h.b,
-		h.r,
-	}
-
-	// use default gob encoder
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
-	if err := enc.Encode(w); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
-}
-
-// UnmarshalBinary is needed in order to encode/decode
-// ciphertexts type since (for now) ciphertext
-// can only be converted to bytes and back
-func (h *GaussianHash) UnmarshalBinary(data []byte) error {
-
-	if len(data) == 0 {
-		return nil
-	}
-
-	w := gaussianHashMarshallWrapper{}
-
-	reader := bytes.NewReader(data)
-	dec := gob.NewDecoder(reader)
-	if err := dec.Decode(&w); err != nil {
-		return err
-	}
-
-	h.a = w.A
-	h.b = w.B
-	h.r = w.R
-
-	return nil
 }

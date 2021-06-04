@@ -33,21 +33,6 @@ func NewEuclideanLSH(dim int, r float64, k int) *LSH {
 	}
 }
 
-// NewHammingLSH sample an LSH for Hamming distance with paramters:
-// dim: dimensionality of vectors
-// k: number of concatenated hash functions for amplification
-func NewHammingLSH(dim int, k int) *LSH {
-
-	hashes := make([]Hash, k)
-	for i := range hashes {
-		hashes[i] = NewHammingHash(dim)
-	}
-
-	return &LSH{
-		Hset: hashes,
-	}
-}
-
 // GetHashSet returns the set of hashes comprising the LSH
 func (lsh *LSH) GetHashSet() []Hash {
 	return lsh.Hset

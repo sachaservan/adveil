@@ -38,9 +38,6 @@ func NewLSHBased(params *LSHParams) (*LSHBasedKNN, error) {
 	knn.Tables = make(map[int]*Table)
 	for i := 0; i < knn.Params.NumTables; i++ {
 		switch knn.Params.Metric {
-		case HammingDistance:
-			knn.Hashes[i] = NewHammingLSH(knn.Params.NumFeatures, knn.Params.NumProjections)
-			break
 		case EuclideanDistance:
 			knn.Hashes[i] = NewEuclideanLSH(knn.Params.NumFeatures, knn.Params.ProjectionWidth, knn.Params.NumProjections)
 			break
