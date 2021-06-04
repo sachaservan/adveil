@@ -24,7 +24,11 @@ github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZb
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/sachaservan/argsort v0.0.0-20210101011536-f2be6a72624d h1:nyrLNNmXpHTeunACpxF+kJPnxgMwnQ682Zihvv2yd3I=
 github.com/sachaservan/argsort v0.0.0-20210101011536-f2be6a72624d/go.mod h1:YG71Mg89LH+H8i+gVlCbMZ6iDdCEmzD56qGpLPjg2K8=
+github.com/sachaservan/paillier v0.0.0-20201119232153-30237183ba29 h1:XcW8sowzMMSw0k/1rV94Hg6vKt/y2mii0HUkULq6YxI=
+github.com/sachaservan/paillier v0.0.0-20201119232153-30237183ba29/go.mod h1:2ZvH2gnl2uZk5Y0e818ZlSg9XonReajybCR0UgoeDpc=
 github.com/sachaservan/vec v0.0.0-20210525122835-a106392859cc h1:WtF90M6Hy9EEDy4XGImXPKwOe/JVk/K9IftW0Lu2lfI=
 github.com/sachaservan/vec v0.0.0-20210525122835-a106392859cc/go.mod h1:wvPZ7fdL0AZYfUlh/DlEpNreIAy2nmdP3S7Ze8QFNI4=
+github.com/sachaservan/vec v0.0.0-20210525154010-4d83667d9588 h1:bTq3XKG3MfYdU8myc9Sk3T+YIqcAzoHrsaSofpqShy4=
+github.com/sachaservan/vec v0.0.0-20210525154010-4d83667d9588/go.mod h1:wvPZ7fdL0AZYfUlh/DlEpNreIAy2nmdP3S7Ze8QFNI4=
 github.com/stretchr/testify v1.2.2 h1:bSDNvY7ZPG5RlJ8otE/7V6gMiyenm9RtJ7IUVIAoJ1w=
 github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=

@@ -13,5 +13,6 @@ require (
 	github.com/gonum/stat v0.0.0-20181125101827-41a0da705a5b
 	github.com/ncw/gmp v1.0.4
 	github.com/sachaservan/argsort v0.0.0-20210101011536-f2be6a72624d
-	github.com/sachaservan/vec v0.0.0-20210525122835-a106392859cc
+	github.com/sachaservan/paillier v0.0.0-20201119232153-30237183ba29 // indirect
+	github.com/sachaservan/vec v0.0.0-20210525154010-4d83667d9588
 )
