@@ -217,8 +217,10 @@ func (server *Server) buildKNNDataStructure() {
 	bucketBits := vecIDBits * server.KnnParams.BucketSize
 
 	// Vector commitment proof for dictionary keys
-	// using bilinear scheme of: Vector Commitments and Their Applications
-	sigBits := 128
+	// using bilinear scheme of LY10 requires 48 bytes (@128 bit security)
+	// assuming a trusted setup,
+	// see https://eprint.iacr.org/2020/419.pdf for details
+	sigBits := 48 * 8
 
 	// divide by 8 to convert to bytes
 	bytesPerBucket := (bucketBits + sigBits) / 8
