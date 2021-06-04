@@ -64,12 +64,12 @@ else
     NOANNS=false
 fi
 
-echo 'Number of Ads: ' $((2**${NUMADS}))
-echo 'Ad size (B):   ' ${SIZE}
-echo 'Num Tables:    ' ${NUMTABLES}
-echo 'Num Features:  ' ${NUMFEATURES}
-echo 'Build ANNS?:   ' ${!NOANNS}
-echo 'Parallelism:   ' ${NUMPROCS}
+echo 'Number of Ads:    ' $((2**${NUMADS}))
+echo 'Ad size (B):      ' ${SIZE}
+echo 'Num Tables:       ' ${NUMTABLES}
+echo 'Num Features:     ' ${NUMFEATURES}
+echo 'Build ANNS?:      ' ${!NOANNS}
+echo 'DB Parallelism:   ' ${NUMPROCS}
 
 # build the server 
 go build -o ./server ./ 

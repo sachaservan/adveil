@@ -37,12 +37,12 @@ type BucketQueryResponse struct {
 	StatsTotalTimeInMS int64
 }
 
-// BucketQueryArgs arguments for a ID to Vector batch PIR query
+// MappingQueryArgs arguments for a ID-to-Vector PIR query
 type MappingQueryArgs struct {
-	Queries map[int]*sealpir.Query // batch query
+	Queries map[int]*sealpir.Query // batch query for each ID
 }
 
-// MappingQueryResponse response to a ID to Vector batch PIR query
+// MappingQueryResponse response for ID-to-Vector PIR query
 type MappingQueryResponse struct {
 	Error              Error
 	Answers            map[int][]*sealpir.Answer

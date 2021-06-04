@@ -14,12 +14,12 @@ import (
 	"github.com/alexflint/go-arg"
 )
 
-// MetricsExperiment contains results for the shuffle and PrivacyPass validation
+// MetricsExperiment contains results for verifying tokens
 type MetricsExperiment struct {
-	NumReports             int     `json:"num_reports"`
-	ShuffleProcessingMS    []int64 `json:"shuffle_processing_ms"`
-	DecryptionProcessingMS []int64 `json:"decryption_processing_ms"`
-	TokenProcessingMS      []int64 `json:"token_processing_ms"`
+	NumReports                int     `json:"num_reports"`
+	TokenStorage              int64   `json:"token_storage_bytes"`
+	RedeemPublicProcessingMS  []int64 `json:"oken_redeem_public_processing_ms"`
+	RedeemPrivateProcessingMS []int64 `json:"token_redeem_private_processing_ms"`
 }
 
 func main() {
@@ -48,10 +48,9 @@ func main() {
 		DataMax         int `default:"50"`
 		ProjectionWidth int `default:"300"`
 
-		// only for shuffle experiment
-		JustShuffle         bool   `default:"false"`
+		// only for reporting experiment
+		JustReporting       bool   `default:"false"`
 		NumTrials           int    `default:"1"`
-		Primary             bool   `default:"false"`
 		NumReports          int    `default:"1024"`
 		ExperimentNumTrials int    `default:"1"`
 		ExperimentSaveFile  string `default:"output.json"`
@@ -71,7 +70,7 @@ func main() {
 	// TODO: don't have magic constants
 	params.ApproximationFactor = 2
 	params.BucketSize = 1
-	params.HashBytes = 2
+	params.HashBytes = 4
 
 	// make the server struct
 	server := &Server{

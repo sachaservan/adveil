@@ -212,7 +212,6 @@ func (server *Server) buildKNNDataStructure() {
 	// for the vectors and the fact that checking bucket membership can be performed
 	// using the LSH functions, this saves computation time (and communication)
 	// in most practical cases as it avoids PIR over Merkle proofs.
-	// See paper for details.
 	server.BucketCountProof = make(map[int][]uint8)
 	for t := 0; t < numTables; t++ {
 		wg.Add(1)
@@ -237,11 +236,9 @@ func (server *Server) buildKNNDataStructure() {
 	// contents of bucket
 	bucketBits := vecIDBits * server.KnnParams.BucketSize
 
-	// MerkleProof for N elements
-	// sigBits := vecIDBits * 256 // 256 bits for SHA256 hash
-
-	// RSA group signature for N elements (i.e., constant)
-	sigBits := 2048
+	// Vector commitment proof for dictionary keys
+	// using bilinear scheme of: Vector Commitments and Their Applications
+	sigBits := 128
 
 	// divide by 8 to convert to bytes
 	bytesPerBucket := (bucketBits) / 8
@@ -266,6 +263,7 @@ func (server *Server) buildKNNDataStructure() {
 		wg.Add(1)
 		go func(t int) {
 			defer wg.Done()
+			// TODO: this is where actual data would be used
 			_, db := sealpir.InitRandomDB(params)
 			mu.Lock()
 			server.TableParams[t] = params
@@ -288,6 +286,7 @@ func (server *Server) buildKNNDataStructure() {
 	server.IDtoVecDB = make(map[int]*sealpir.Database)
 	server.IDtoVecParams = make(map[int]*sealpir.Params)
 
+	// TODO: this is where actual data would be used
 	_, db := sealpir.InitRandomDB(params)
 	server.IDtoVecParams[0] = params
 	server.IDtoVecDB[0] = db
