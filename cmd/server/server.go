@@ -29,8 +29,6 @@ type Server struct {
 	TableDBs    map[int]*sealpir.Database // array of databases; one for each hash table
 	TableParams map[int]*sealpir.Params   // array of SealPIR params; one for each hash table
 
-	BucketCountProof map[int][]uint8 // bucket counts for each hash table
-
 	AdDb   *sealpir.Database // database of ads
 	AdSize int
 	NumAds int
@@ -64,7 +62,6 @@ func (server *Server) PrivateBucketQuery(args *api.BucketQueryArgs, reply *api.B
 	log.Printf("[Server]: received request to PrivateBucketQuery\n")
 
 	reply.Answers = make(map[int][]*sealpir.Answer)
-	reply.BucketCountProof = server.BucketCountProof
 
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -207,23 +204,6 @@ func (server *Server) buildKNNDataStructure() {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 
-	// (optimization): instead of computing a Merkle proof over each hash table
-	// just send back the counts for each bucket; coupled with the Merkle proofs
-	// for the vectors and the fact that checking bucket membership can be performed
-	// using the LSH functions, this saves computation time (and communication)
-	// in most practical cases as it avoids PIR over Merkle proofs.
-	server.BucketCountProof = make(map[int][]uint8)
-	for t := 0; t < numTables; t++ {
-		wg.Add(1)
-		go func(t int) {
-			defer wg.Done()
-			mu.Lock()
-			server.BucketCountProof[t] = make([]uint8, numBuckets)
-			mu.Unlock()
-		}(t)
-	}
-	wg.Wait()
-
 	// compute the min number of bytes needed to represent a bucket
 	// size of each vector is dim * 8 in bits (assuming 8 bits per entry)
 
@@ -241,7 +221,7 @@ func (server *Server) buildKNNDataStructure() {
 	sigBits := 128
 
 	// divide by 8 to convert to bytes
-	bytesPerBucket := (bucketBits) / 8
+	bytesPerBucket := (bucketBits + sigBits) / 8
 
 	// divide by 8 to convert to bytes
 	bytesPerMapping := (vecBits + sigBits) / 8

@@ -33,7 +33,6 @@ type BucketQueryArgs struct {
 type BucketQueryResponse struct {
 	Error              Error
 	Answers            map[int][]*sealpir.Answer
-	BucketCountProof   map[int][]uint8
 	StatsTotalTimeInMS int64
 }
 
