@@ -1,7 +1,9 @@
 package anns
 
 import (
+	"bytes"
 	crand "crypto/rand"
+	"encoding/gob"
 	"errors"
 	"math"
 	"math/big"
@@ -30,6 +32,18 @@ type GaussianHash struct {
 	a *vec.Vec // fixed-point encoded vector of gaussian random variables
 	b float64  // uniformly random value in the range [0, r]
 	r float64
+}
+
+type universalHashMarshallWrapper struct {
+	R1 *gmp.Int
+	R2 *gmp.Int
+	N  *gmp.Int
+}
+
+type gaussianlHashMarshallWrapper struct {
+	A *vec.Vec // fixed-point encoded vector of gaussian random variables
+	B float64  // uniformly random value in the range [0, r]
+	R float64
 }
 
 // NewGaussianHash generates a new locality sensitive Gaussian hash for L2 distance metric
@@ -150,4 +164,94 @@ func (h *UniversalHash) GetHashParameters() (*gmp.Int, *gmp.Int, *gmp.Int) {
 // StringDigest returns the evaluation of the hash on s encoded as a string
 func (h *UniversalHash) StringDigest(s *gmp.Int) string {
 	return string(h.Digest(s).Bytes())
+}
+
+// MarshalBinary is needed in order to encode/decode
+// ciphertexts type since (for now) ciphertext
+// can only be converted to bytes and back
+func (h *UniversalHash) MarshalBinary() ([]byte, error) {
+
+	// wrap struct
+	w := universalHashMarshallWrapper{
+		h.r1,
+		h.r2,
+		h.n,
+	}
+
+	// use default gob encoder
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	if err := enc.Encode(w); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// UnmarshalBinary is needed in order to encode/decode
+// ciphertexts type since (for now) ciphertext
+// can only be converted to bytes and back
+func (h *UniversalHash) UnmarshalBinary(data []byte) error {
+
+	if len(data) == 0 {
+		return nil
+	}
+
+	w := universalHashMarshallWrapper{}
+
+	reader := bytes.NewReader(data)
+	dec := gob.NewDecoder(reader)
+	if err := dec.Decode(&w); err != nil {
+		return err
+	}
+
+	h.r1 = w.R1
+	h.r2 = w.R2
+	h.n = w.N
+
+	return nil
+}
+
+// MarshalBinary is needed in order to encode/decode
+// ciphertexts type since (for now) ciphertext
+// can only be converted to bytes and back
+func (h *GaussianHash) MarshalBinary() ([]byte, error) {
+
+	// wrap struct
+	w := gaussianlHashMarshallWrapper{
+		h.a,
+		h.b,
+		h.r,
+	}
+
+	// use default gob encoder
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	if err := enc.Encode(w); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// UnmarshalBinary is needed in order to encode/decode
+// ciphertexts type since (for now) ciphertext
+// can only be converted to bytes and back
+func (h *GaussianHash) UnmarshalBinary(data []byte) error {
+
+	if len(data) == 0 {
+		return nil
+	}
+
+	w := gaussianlHashMarshallWrapper{}
+
+	reader := bytes.NewReader(data)
+	dec := gob.NewDecoder(reader)
+	if err := dec.Decode(&w); err != nil {
+		return err
+	}
+
+	h.a = w.A
+	h.b = w.B
+	h.r = w.R
+
+	return nil
 }
