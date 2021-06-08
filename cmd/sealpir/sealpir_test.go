@@ -190,3 +190,65 @@ func BenchmarkParallelQuery(b *testing.B) {
 		db.Server.GenAnswer(query)
 	}
 }
+
+func BenchmarkGenQuery(b *testing.B) {
+	// test parameters
+	numItems := 1 << 12
+	nParallel := 1
+	itemBytes := 256
+	polyDegree := 2048
+	logt := 12
+	d := 2
+
+	params := InitParams(numItems, itemBytes, polyDegree, logt, d, nParallel)
+
+	_, db := InitRandomDB(params)
+
+	client := InitClient(params, 0)
+
+	keys := client.GenGaloisKeys()
+	db.Server.SetGaloisKeys(keys)
+
+	b.Logf("Galois Keys %v\n", len(keys.Str))
+
+	elemIndexBig, _ := rand.Int(rand.Reader, big.NewInt(int64(params.NumItems)))
+	elemIndex := elemIndexBig.Int64() % int64(params.NumItems)
+	index := client.GetFVIndex(elemIndex)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		client.GenQuery(index)
+	}
+}
+
+func BenchmarkRecover(b *testing.B) {
+	// test parameters
+	numItems := 1 << 12
+	nParallel := 1
+	itemBytes := 256
+	polyDegree := 2048
+	logt := 12
+	d := 2
+
+	params := InitParams(numItems, itemBytes, polyDegree, logt, d, nParallel)
+
+	_, db := InitRandomDB(params)
+
+	client := InitClient(params, 0)
+
+	keys := client.GenGaloisKeys()
+	db.Server.SetGaloisKeys(keys)
+
+	elemIndexBig, _ := rand.Int(rand.Reader, big.NewInt(int64(params.NumItems)))
+	elemIndex := elemIndexBig.Int64() % int64(params.NumItems)
+	index := client.GetFVIndex(elemIndex)
+	query := client.GenQuery(index)
+	answer := db.Server.GenAnswer(query)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		client.Recover(answer[0], 0)
+	}
+}
