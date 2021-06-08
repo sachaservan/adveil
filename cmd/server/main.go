@@ -162,7 +162,7 @@ func (server *Server) loadFeatureVectors(dbSize, numFeatures, min, max int) {
 }
 
 // for timing purposes only
-func (server *Server) genFakeReportingToken() *token.SignedToken {
+func (server *Server) genFakeReportingPrivateToken() *token.SignedToken {
 
 	tokenPk := token.PublicKey{
 		Pk: server.RPk.Pk,
@@ -172,11 +172,32 @@ func (server *Server) genFakeReportingToken() *token.SignedToken {
 		Sk: server.RSk.Sk,
 	}
 
-	t, bP, _, err := tokenPk.NewToken()
+	t, T, _, _, err := tokenPk.NewPrivateMDToken()
 	if err != nil {
 		panic(err)
 	}
 
-	sig := tokenSk.Sign(bP)
-	return &token.SignedToken{T: t, S: sig}
+	W := tokenSk.PrivateMDSign(T, false)
+	return &token.SignedToken{T: t, W: W}
+}
+
+// for timing purposes only
+func (server *Server) genFakeReportingPublicToken() *token.SignedToken {
+
+	tokenPk := token.PublicKey{
+		Pk: server.RPk.Pk,
+	}
+
+	tokenSk := token.SecretKey{
+		Sk: server.RSk.Sk,
+	}
+
+	md := make([]byte, 4)
+	t, T, _, err := tokenPk.NewPublicMDToken(md)
+	if err != nil {
+		panic(err)
+	}
+
+	W, proof := tokenSk.PublicMDSign(T, md)
+	return &token.SignedToken{T: t, W: W, Proof: proof}
 }

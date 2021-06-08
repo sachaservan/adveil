@@ -220,7 +220,12 @@ func (server *Server) buildKNNDataStructure() {
 	// using bilinear scheme of LY10 requires 48 bytes (@128 bit security)
 	// assuming a trusted setup,
 	// see https://eprint.iacr.org/2020/419.pdf for details
-	sigBits := 48 * 8
+	// Trusted setup required to sign all public elements (1 element per key)
+	// In total:
+	// 		48 bytes for proof;
+	//      4 bytes for public params element;
+	//      32 bytes for signature on element
+	sigBits := (48 + 48 + 32) * 8
 
 	// divide by 8 to convert to bytes
 	bytesPerBucket := (bucketBits + sigBits) / 8
