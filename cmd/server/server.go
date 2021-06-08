@@ -218,20 +218,22 @@ func (server *Server) buildKNNDataStructure() {
 
 	// Vector commitment proof for dictionary keys
 	// using bilinear scheme of LY10 requires 48 bytes (@128 bit security)
-	// assuming a trusted setup,
 	// see https://eprint.iacr.org/2020/419.pdf for details
-	// Trusted setup required to sign all public elements (1 element per key)
+	//
+	// Trusted setup required to sign all public elements (1 element per key);
+	// This is required solely for efficiency since we don't want the client
+	// to download all public parameters.
 	// In total:
-	// 		48 bytes for proof;
-	//      4 bytes for public params element;
-	//      32 bytes for signature on element
-	sigBits := (48 + 48 + 32) * 8
+	// 		48 bytes for proof for the vector commitment over the dictionary keys;
+	//      48 bytes for public params element associated with the dictionary key;
+	//      32 bytes for signature on public params element.
+	proofBits := (48 + 48 + 32) * 8
 
 	// divide by 8 to convert to bytes
-	bytesPerBucket := (bucketBits + sigBits) / 8
+	bytesPerBucket := (bucketBits + proofBits) / 8
 
 	// divide by 8 to convert to bytes
-	bytesPerMapping := (vecBits + sigBits) / 8
+	bytesPerMapping := (vecBits + proofBits) / 8
 
 	// SealPIR databases and params for each hash table
 	server.TableDBs = make(map[int]*sealpir.Database)
