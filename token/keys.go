@@ -13,12 +13,13 @@ type PublicKey struct {
 }
 
 type SecretKey struct {
+	Pk *crypto.Point
 	Sk *big.Int
 }
 
 func KeyGen(curve elliptic.Curve) (*PublicKey, *SecretKey) {
 	k, x, y, _ := elliptic.GenerateKey(curve, crand.Reader)
-	p := &crypto.Point{curve, x, y}
+	P := &crypto.Point{curve, x, y}
 	sk := new(big.Int).SetBytes(k)
-	return &PublicKey{Pk: p}, &SecretKey{Sk: sk}
+	return &PublicKey{Pk: P}, &SecretKey{Pk: P, Sk: sk}
 }

@@ -2,105 +2,194 @@ package token
 
 import (
 	"crypto/elliptic"
-	"crypto/rand"
 	_ "crypto/sha256"
 	"testing"
-
-	"github.com/sachaservan/adveil/crypto"
 )
 
-func TestBlindingP256(t *testing.T) {
-	curve := elliptic.P256()
-	_, x, y, _ := elliptic.GenerateKey(curve, rand.Reader)
-	X := &crypto.Point{Curve: curve, X: x, Y: y}
-	P, r := Blind(X)
-	Xprime := Unblind(P, r)
-	if X.X.Cmp(Xprime.X) != 0 || X.Y.Cmp(Xprime.Y) != 0 {
-		t.Fatal("unblinding failed to produce the same point")
-	}
-}
-
-func TestFullProtocol(t *testing.T) {
+func TestPrivateMetadataBitProtocol(t *testing.T) {
 
 	curve := elliptic.P256()
 	pk, sk := KeyGen(curve)
 
 	// Client: generate and store (token, bF, bP)
-	token, bP, bF, err := pk.NewToken()
+	token, uT, u, v, err := pk.NewPrivateMDToken()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Server: sign blinded token
-	// 2b. Sign the blind point
-	sigBlind := sk.Sign(bP)
+	uW := sk.PrivateMDSign(uT, true)
 
 	// Client: unblind signature
-	sig := Unblind(sigBlind, bF)
+	W := pk.PrivateMDUnblind(uW, u, v)
 
-	signed := &SignedToken{token, sig}
+	signed := &SignedToken{token, W, nil, nil}
 
 	// Server: redeem unblinded token and signature
-	valid := sk.Redeem(signed)
+	valid := sk.PrivateMDRedeem(signed)
 	if !valid {
 		t.Fatal("failed redemption")
 	}
 }
 
-func TestFullProtocolWithProof(t *testing.T) {
+func TestPublicMetadataProtocol(t *testing.T) {
 
 	curve := elliptic.P256()
 	pk, sk := KeyGen(curve)
 
+	metadata := make([]byte, 100)
+
 	// Client: generate and store (token, bF, bP)
-	token, bP, bF, err := pk.NewToken()
+	token, uT, u, err := pk.NewPublicMDToken(metadata)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Server: sign blinded token
-	// 2b. Sign the blind point
-	sigBlind := sk.Sign(bP)
+	uW, proof := sk.PublicMDSign(uT, metadata)
 
 	// Client: unblind signature
-	sig := Unblind(sigBlind, bF)
+	W, err := pk.PublicMDUnblind(uW, u, metadata, proof)
 
-	signed := &SignedToken{token, sig}
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	signed := &SignedToken{token, W, nil, nil}
 
 	// Server: redeem unblinded token and signature
-	valid, proof := sk.RedeemAndProve(pk, signed)
+	valid := sk.PublicMDRedeem(signed, metadata)
 	if !valid {
 		t.Fatal("failed redemption")
 	}
+}
 
-	h2cObject, _ := crypto.GetDefaultCurveHash()
-	if !proof.Verify(h2cObject) {
-		t.Fatal("failed proof verification")
+func BenchmarkGenTokenPrivate(b *testing.B) {
+
+	curve := elliptic.P256()
+	pk, _ := KeyGen(curve)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		pk.NewPrivateMDToken()
+	}
+
+}
+
+func BenchmarkGenTokenPublic(b *testing.B) {
+
+	curve := elliptic.P256()
+	pk, _ := KeyGen(curve)
+
+	metadata := make([]byte, 100)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		pk.NewPublicMDToken(metadata)
 	}
 }
 
-func BenchmarkBlinding(b *testing.B) {
-	_, X, err := crypto.NewRandomPoint()
-	if err != nil {
-		panic(err)
-	}
+func BenchmarkUnblind(b *testing.B) {
+
+	curve := elliptic.P256()
+	pk, sk := KeyGen(curve)
+
+	metadata := make([]byte, 100)
+	_, uT, u, _ := pk.NewPublicMDToken(metadata)
+
+	// Server: sign blinded token
+	uW, proof := sk.PublicMDSign(uT, metadata)
+
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		Blind(X)
+		pk.PublicMDUnblind(uW, u, metadata, proof)
+	}
+
+}
+
+func BenchmarkSignPublicMetadata(b *testing.B) {
+
+	curve := elliptic.P256()
+	pk, sk := KeyGen(curve)
+
+	metadata := make([]byte, 100)
+
+	_, uT, _, err := pk.NewPublicMDToken(metadata)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		sk.PublicMDSign(uT, metadata)
+	}
+
+}
+
+func BenchmarkRedeemPublicMetadata(b *testing.B) {
+
+	curve := elliptic.P256()
+	pk, sk := KeyGen(curve)
+
+	metadata := make([]byte, 100)
+
+	// Client: generate and store (token, bF, bP)
+	token, uT, u, err := pk.NewPublicMDToken(metadata)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	uW, proof := sk.PublicMDSign(uT, metadata)
+
+	W, err := pk.PublicMDUnblind(uW, u, metadata, proof)
+
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	signed := &SignedToken{token, W, nil, nil}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		sk.PublicMDRedeem(signed, metadata)
 	}
 }
 
-func BenchmarkUnblinding(b *testing.B) {
-	_, X, err := crypto.NewRandomPoint()
+func BenchmarkSignPrivateMetadataBit(b *testing.B) {
+
+	curve := elliptic.P256()
+	pk, sk := KeyGen(curve)
+
+	_, uT, _, _, err := pk.NewPrivateMDToken()
 	if err != nil {
-		panic(err)
+		b.Fatal(err)
 	}
 
-	P, r := Blind(X)
-	if P == nil || r == nil {
-		b.Fatalf("nil ret values")
-	}
-
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		Unblind(P, r)
+		sk.PrivateMDSign(uT, true)
+	}
+
+}
+
+func BenchmarkRedeemPrivateMetadataBit(b *testing.B) {
+
+	curve := elliptic.P256()
+	pk, sk := KeyGen(curve)
+
+	token, uT, u, v, err := pk.NewPrivateMDToken()
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	uW := sk.PrivateMDSign(uT, true)
+
+	W := pk.PrivateMDUnblind(uW, u, v)
+
+	signed := &SignedToken{token, W, nil, nil}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		sk.PrivateMDRedeem(signed)
 	}
 }
