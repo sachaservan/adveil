@@ -24,7 +24,7 @@ type Server struct {
 	Knn       *anns.LSHBasedKNN
 
 	TableDBs    map[int]*sealpir.Database // array of databases; one for each hash table
-	TableParams map[int]*sealpir.Params   // array of SealPIR params; one for each hash table
+	TableParams *sealpir.Params           // array of SealPIR params; one for each hash table
 
 	AdDb   *sealpir.Database // database of ads
 	AdSize int
@@ -196,9 +196,8 @@ func (server *Server) buildKNNDataStructure() {
 
 	// SealPIR databases and params for each hash table
 	server.TableDBs = make(map[int]*sealpir.Database)
-	server.TableParams = make(map[int]*sealpir.Params)
 
-	params := sealpir.InitParams(
+	server.TableParams = sealpir.InitParams(
 		numBuckets,
 		bytesPerBucket,
 		sealpir.DefaultSealPolyDegree,
@@ -212,24 +211,13 @@ func (server *Server) buildKNNDataStructure() {
 		go func(t int) {
 			defer wg.Done()
 			// TODO: this is where actual data would be used
-			_, db := sealpir.InitRandomDB(params)
+			_, db := sealpir.InitRandomDB(server.TableParams)
 			mu.Lock()
-			server.TableParams[t] = params
 			server.TableDBs[t] = db
 			mu.Unlock()
 		}(t)
 	}
 	wg.Wait()
-
-	// SealPIR database for the mapping from ID to feature vector
-	params = sealpir.InitParams(
-		len(server.KnnValues),
-		bytesPerBucket,
-		sealpir.DefaultSealPolyDegree,
-		sealpir.DefaultSealLogt,
-		sealpir.DefaultSealRecursionDim,
-		server.NumProcs, // divide database into NumTables separate databases
-	)
 }
 
 func newError(err error) api.Error {

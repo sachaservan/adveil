@@ -39,7 +39,7 @@ type BucketQueryResponse struct {
 
 // SetKeysArgs for setting SealPIR galois keys
 type SetKeysArgs struct {
-	TableDBGaloisKeys map[int]*sealpir.GaloisKeys
+	TableDBGaloisKeys *sealpir.GaloisKeys
 	AdDBGaloisKeys    *sealpir.GaloisKeys
 }
 
@@ -56,10 +56,9 @@ type InitSessionResponse struct {
 	SessionParameters
 	Error Error
 
-	TableNumBuckets    map[int]int                       // number of hash buckets in each table
-	TableHashFunctions map[int]*anns.LSH                 // LSH functions used to query tables
-	TablePIRParams     map[int]*sealpir.SerializedParams // SealPIR params for each hash table
-	IDtoVecPIRParams   map[int]*sealpir.SerializedParams // SealPIR params for mappings
+	TableNumBuckets    map[int]int               // number of hash buckets in each table
+	TableHashFunctions map[int]*anns.LSH         // LSH functions used to query tables
+	TablePIRParams     *sealpir.SerializedParams // SealPIR params for each hash table
 
 	AdPIRParams *sealpir.SerializedParams // SealPIR params for the ad database
 

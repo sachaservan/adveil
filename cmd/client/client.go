@@ -47,10 +47,10 @@ type Client struct {
 	// SealPIR related
 	// NOTE: "client" here refers to the PIR client in SealPIR
 	// and is a bridge between Go and C++ code
-	tablePIRClients    map[int]*sealpir.Client     // clients used to query each tables
-	tablePIRKeys       map[int]*sealpir.GaloisKeys // keys used to query each hash table
-	tableNumBuckets    map[int]int                 // number of hash buckets in each table
-	tableHashFunctions map[int]*anns.LSH           // LSH functions used to query tables
+	tablePIRClient     *sealpir.Client     // clients used to query each tables
+	tablePIRKeys       *sealpir.GaloisKeys // keys used to query each hash table
+	tableNumBuckets    map[int]int         // number of hash buckets in each table
+	tableHashFunctions map[int]*anns.LSH   // LSH functions used to query tables
 
 	adPIRParams *sealpir.Params     // SealPIR params for the ad database
 	adPIRClient *sealpir.Client     // client used to query ad database
@@ -87,27 +87,11 @@ func (client *Client) InitSession() {
 	if res.TablePIRParams != nil {
 		// initialize the SealPIR clients used to query each hash table
 		// using the params provided by the server
-		tableClients := make(map[int]*sealpir.Client)
-		tableKeys := make(map[int]*sealpir.GaloisKeys)
-		idToVecClients := make(map[int]*sealpir.Client)
-		idToVecKeys := make(map[int]*sealpir.GaloisKeys)
+		c := sealpir.InitClient(sealpir.DeserializeParams(res.TablePIRParams), 0)
+		keys := c.GenGaloisKeys()
 
-		for table, params := range res.TablePIRParams {
-			c := sealpir.InitClient(sealpir.DeserializeParams(params), 0)
-			keys := c.GenGaloisKeys()
-			tableClients[table] = c
-			tableKeys[table] = keys
-		}
-
-		for i, params := range res.IDtoVecPIRParams {
-			c := sealpir.InitClient(sealpir.DeserializeParams(params), 0)
-			keys := c.GenGaloisKeys()
-			idToVecClients[i] = c
-			idToVecKeys[i] = keys
-		}
-
-		client.tablePIRClients = tableClients
-		client.tablePIRKeys = tableKeys
+		client.tablePIRClient = c
+		client.tablePIRKeys = keys
 
 		client.tableNumBuckets = res.TableNumBuckets
 		client.tableHashFunctions = res.TableHashFunctions
@@ -160,11 +144,8 @@ func (client *Client) TerminateSessions() {
 	}
 
 	client.adPIRClient.Free()
-	// client.adPIRParams.Free()
-	for _, c := range client.tablePIRClients {
-		c.Free()
-		// c.Params.Free()
-	}
+	client.tablePIRClient.Free()
+
 }
 
 // PrivateQueryAd privately retrieves the ad at the index
@@ -224,7 +205,7 @@ func (client *Client) QueryBuckets() ([][]int, int64, int64, int64, int64) {
 		h := client.tableHashFunctions[tableIndex]
 		elemIndex := h.Digest(client.profile).Int64()
 
-		c := client.tablePIRClients[tableIndex]
+		c := client.tablePIRClient
 		index := c.GetFVIndex(elemIndex)
 		query := c.GenQuery(index)
 

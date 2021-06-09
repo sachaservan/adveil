@@ -47,7 +47,7 @@ func (server *Server) InitSession(args api.InitSessionArgs, reply *api.InitSessi
 
 	if server.ANNS {
 		reply.NumTables = server.Knn.NumTables()
-		reply.TablePIRParams = sealpir.SerializeParamsMap(server.TableParams)
+		reply.TablePIRParams = sealpir.SerializeParams(server.TableParams)
 		reply.TableHashFunctions = server.Knn.Hashes
 	}
 
@@ -61,7 +61,7 @@ func (server *Server) SetPIRKeys(args api.SetKeysArgs, reply *api.SetKeysRespons
 	server.AdDb.Server.SetGaloisKeys(args.AdDBGaloisKeys)
 
 	for i := 0; i < server.KnnParams.NumTables; i++ {
-		server.TableDBs[i].Server.SetGaloisKeys(args.TableDBGaloisKeys[i])
+		server.TableDBs[i].Server.SetGaloisKeys(args.TableDBGaloisKeys)
 	}
 
 	return nil
