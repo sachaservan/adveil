@@ -90,6 +90,7 @@ func (server *Server) PrivateBucketQuery(args *api.BucketQueryArgs, reply *api.B
 	// bandwidth required to send: all hash tables + mapping from ID to vector
 	// observe that this is much better than sending the tables with the full vectors in each bucket
 	naiveBandwidth := int64(server.KnnParams.NumTables)*int64(bucketSize) + int64(idMappingBits)
+	naiveBandwidth = naiveBandwidth / 8 // bits to bytes
 
 	reply.StatsNaiveBandwidthBytes = naiveBandwidth
 	reply.StatsTotalTimeInMS = time.Now().Sub(start).Milliseconds()
