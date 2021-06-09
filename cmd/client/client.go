@@ -18,22 +18,22 @@ import (
 // RuntimeExperiment captures all the information needed to
 // evaluate a live deployment
 type RuntimeExperiment struct {
-	NumAds                  int     `json:"num_ads"`
-	NumFeatures             int     `json:"num_features"`
-	AdSizeKB                int     `json:"ad_size_kilobytes"`
-	NumTables               int     `json:"num_tables"`
-	GetBucketServerMS       []int64 `json:"get_bucket_server_ms"`
-	GetBucketClientMS       []int64 `json:"get_bucket_client_ms"`
-	GetBucketBandwidthDownB []int64 `json:"get_bucket_bandwidth_down_bytes"`
-	GetBucketBandwidthUpB   []int64 `json:"get_bucket_bandwidth_up_bytes"`
+	NumAds                   int     `json:"num_ads"`
+	NumFeatures              int     `json:"num_features"`
+	AdSizeKB                 int     `json:"ad_size_kilobytes"`
+	NumTables                int     `json:"num_tables"`
+	GetBucketServerMS        []int64 `json:"get_bucket_server_ms"`
+	GetBucketClientMS        []int64 `json:"get_bucket_client_ms"`
+	GetBucketBandwidthDownB  []int64 `json:"get_bucket_bandwidth_down_bytes"`
+	GetBucketBandwidthUpB    []int64 `json:"get_bucket_bandwidth_up_bytes"`
 	GetBucketBandwidthNaiveB []int64 `json:"get_bucket_bandwidth_naive_bytes"`
-	GetAdServerMS           []int64 `json:"get_ad_server_ms"`
-	GetAdClientMS           []int64 `json:"get_ad_client_ms"`
-	GetAdBandwidthB         []int64 `json:"get_ad_bandwidth_bytes"`
-	PrivateGetAdServerMS    []int64 `json:"private_get_ad_server_ms"`
-	PrivateGetAdDPFServerMS []int64 `json:"private_get_ad_dpf_server_ms"`
-	PrivateGetAdClientMS    []int64 `json:"private_get_ad_client_ms"`
-	PrivateGetAdBandwidthB  []int64 `json:"private_get_ad_bandwidth_bytes"`
+	GetAdServerMS            []int64 `json:"get_ad_server_ms"`
+	GetAdClientMS            []int64 `json:"get_ad_client_ms"`
+	GetAdBandwidthB          []int64 `json:"get_ad_bandwidth_bytes"`
+	PrivateGetAdServerMS     []int64 `json:"private_get_ad_server_ms"`
+	PrivateGetAdDPFServerMS  []int64 `json:"private_get_ad_dpf_server_ms"`
+	PrivateGetAdClientMS     []int64 `json:"private_get_ad_client_ms"`
+	PrivateGetAdBandwidthB   []int64 `json:"private_get_ad_bandwidth_bytes"`
 }
 
 const BrokerServerID int = 0
@@ -252,7 +252,7 @@ func (client *Client) QueryBuckets() ([][]int, int64, int64, int64, int64) {
 	bandwidthDown := getSizeInBytes(qres)
 	serverMS := qres.StatsTotalTimeInMS
 
-	return nil, serverMS,  bandwidthUp, bandwidthDown, bandwidthNaive,
+	return nil, serverMS, bandwidthUp, bandwidthDown, bandwidthNaive
 }
 
 func getSizeInBytes(s interface{}) int64 {
