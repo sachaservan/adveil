@@ -48,8 +48,6 @@ type Client struct {
 	// and is a bridge between Go and C++ code
 	tablePIRClients    map[int]*sealpir.Client     // clients used to query each tables
 	tablePIRKeys       map[int]*sealpir.GaloisKeys // keys used to query each hash table
-	idToVecPIRClients  map[int]*sealpir.Client     // clients used to batch query mappings
-	idToVecPIRKeys     map[int]*sealpir.GaloisKeys // keys used to batch query mappings
 	tableNumBuckets    map[int]int                 // number of hash buckets in each table
 	tableHashFunctions map[int]*anns.LSH           // LSH functions used to query tables
 
@@ -109,8 +107,6 @@ func (client *Client) InitSession() {
 
 		client.tablePIRClients = tableClients
 		client.tablePIRKeys = tableKeys
-		client.idToVecPIRClients = idToVecClients
-		client.idToVecPIRKeys = idToVecKeys
 
 		client.tableNumBuckets = res.TableNumBuckets
 		client.tableHashFunctions = res.TableHashFunctions
@@ -146,7 +142,6 @@ func (client *Client) SendPIRKeys() {
 
 	args.AdDBGaloisKeys = client.adPIRKeys
 	args.TableDBGaloisKeys = client.tablePIRKeys
-	args.IDtoVecKeys = client.idToVecPIRKeys
 
 	if !client.call("Server.SetPIRKeys", &args, &res) {
 		panic("failed to make RPC call")
@@ -251,33 +246,9 @@ func (client *Client) QueryBuckets() ([][]int, int64, int64, int64) {
 	// 	c.Recover(qres.Answers[tableIndex][0], offset)
 	// }
 
-	margs := &api.MappingQueryArgs{}
-	mres := &api.MappingQueryResponse{}
-
-	margs.Queries = make(map[int]*sealpir.Query)
-
-	c := client.idToVecPIRClients[0]
-	for i := 0; i < client.sessionParams.NumTables; i++ {
-		index := c.GetFVIndex(0)
-		query := c.GenQuery(index)
-		margs.Queries[i] = query
-	}
-
-	if !client.call("Server.PrivateMappingQuery", &margs, &mres) {
-		panic("failed to make RPC call")
-	}
-
-	// for i := 0; i < client.sessionParams.NumTables; i++ {
-	// 	c := client.idToVecPIRClients[i]
-	// 	// TODO: make this a batch PIR recover
-	// 	index := int64(0)
-	// 	offset := c.GetFVOffset(index) // retrieve
-	// 	c.Recover(mres.Answers[i][0], offset)
-	// }
-
-	bandwidthUp := getSizeInBytes(qargs) + getSizeInBytes(margs)
-	bandwidthDown := getSizeInBytes(qres) + getSizeInBytes(mres)
-	serverMS := qres.StatsTotalTimeInMS + mres.StatsTotalTimeInMS
+	bandwidthUp := getSizeInBytes(qargs)
+	bandwidthDown := getSizeInBytes(qres)
+	serverMS := qres.StatsTotalTimeInMS
 
 	return nil, serverMS, bandwidthUp, bandwidthDown
 }

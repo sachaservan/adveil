@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"math"
 	"net"
 	"sync"
 	"time"
@@ -22,9 +21,6 @@ type Server struct {
 	KnnParams *anns.LSHParams
 	KnnValues []*vec.Vec
 	Knn       *anns.LSHBasedKNN
-
-	IDtoVecDB     map[int]*sealpir.Database // each database is a mapping of ID (index) to vector
-	IDtoVecParams map[int]*sealpir.Params
 
 	TableDBs    map[int]*sealpir.Database // array of databases; one for each hash table
 	TableParams map[int]*sealpir.Params   // array of SealPIR params; one for each hash table
@@ -88,46 +84,6 @@ func (server *Server) PrivateBucketQuery(args *api.BucketQueryArgs, reply *api.B
 
 	reply.StatsTotalTimeInMS = time.Now().Sub(start).Milliseconds()
 	log.Printf("[Server]: processed PrivateBucketQuery request in %v ms", reply.StatsTotalTimeInMS)
-
-	return nil
-}
-
-// PrivateMappingQuery performs a batch PIR query to recover the mapping of IDs to vectors
-func (server *Server) PrivateMappingQuery(args *api.MappingQueryArgs, reply *api.MappingQueryResponse) error {
-
-	start := time.Now()
-	reply.StartsStartTime = time.Now().Unix()
-
-	log.Printf("[Server]: received request to PrivateMappingQuery\n")
-
-	reply.Answers = make(map[int][]*sealpir.Answer)
-
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-	for i := 0; i < server.KnnParams.NumTables; i++ {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
-
-			mu.Lock()
-			query := args.Queries[0]
-			db := server.IDtoVecDB[0]
-			mu.Unlock()
-
-			res := db.Server.GenAnswer(query)
-
-			mu.Lock()
-			reply.Answers[i] = res
-			mu.Unlock()
-
-		}(i)
-	}
-
-	wg.Wait()
-
-	reply.StatsTotalTimeInMS = time.Now().Sub(start).Milliseconds()
-
-	log.Printf("[Server]: processed PrivateMappingQuery request in %v ms", reply.StatsTotalTimeInMS)
 
 	return nil
 }
@@ -207,19 +163,15 @@ func (server *Server) buildKNNDataStructure() {
 	// compute the min number of bytes needed to represent a bucket
 	// size of each vector is dim * 8 in bits (assuming 8 bits per entry)
 
-	// size of a feature vector ID
-	vecIDBits := int(math.Ceil(math.Log2(float64(len(server.KnnValues)))))
-
 	// size of each feature vector
 	vecBits := server.KnnValues[0].Size() * 8 // 1 byte per coordinate
 
 	// contents of bucket
-	bucketBits := vecIDBits * server.KnnParams.BucketSize
+	bucketBits := vecBits * server.KnnParams.BucketSize
 
 	// Vector commitment proof for dictionary keys
 	// using bilinear scheme of LY10 requires 48 bytes (@128 bit security)
 	// see https://eprint.iacr.org/2020/419.pdf for details
-	//
 	// Trusted setup required to sign all public elements (1 element per key);
 	// This is required solely for efficiency since we don't want the client
 	// to download all public parameters.
@@ -231,9 +183,6 @@ func (server *Server) buildKNNDataStructure() {
 
 	// divide by 8 to convert to bytes
 	bytesPerBucket := (bucketBits + proofBits) / 8
-
-	// divide by 8 to convert to bytes
-	bytesPerMapping := (vecBits + proofBits) / 8
 
 	// SealPIR databases and params for each hash table
 	server.TableDBs = make(map[int]*sealpir.Database)
@@ -265,20 +214,12 @@ func (server *Server) buildKNNDataStructure() {
 	// SealPIR database for the mapping from ID to feature vector
 	params = sealpir.InitParams(
 		len(server.KnnValues),
-		bytesPerMapping,
+		bytesPerBucket,
 		sealpir.DefaultSealPolyDegree,
 		sealpir.DefaultSealLogt,
 		sealpir.DefaultSealRecursionDim,
 		server.NumProcs, // divide database into NumTables separate databases
 	)
-
-	server.IDtoVecDB = make(map[int]*sealpir.Database)
-	server.IDtoVecParams = make(map[int]*sealpir.Params)
-
-	// TODO: this is where actual data would be used
-	_, db := sealpir.InitRandomDB(params)
-	server.IDtoVecParams[0] = params
-	server.IDtoVecDB[0] = db
 }
 
 func newError(err error) api.Error {

@@ -49,7 +49,6 @@ func (server *Server) InitSession(args api.InitSessionArgs, reply *api.InitSessi
 		reply.NumTables = server.Knn.NumTables()
 		reply.TablePIRParams = sealpir.SerializeParamsMap(server.TableParams)
 		reply.TableHashFunctions = server.Knn.Hashes
-		reply.IDtoVecPIRParams = sealpir.SerializeParamsMap(server.IDtoVecParams)
 	}
 
 	return nil
@@ -60,8 +59,6 @@ func (server *Server) SetPIRKeys(args api.SetKeysArgs, reply *api.SetKeysRespons
 	log.Printf("[Server]: received request to SetPIRKeys")
 
 	server.AdDb.Server.SetGaloisKeys(args.AdDBGaloisKeys)
-
-	server.IDtoVecDB[0].Server.SetGaloisKeys(args.IDtoVecKeys[0])
 
 	for i := 0; i < server.KnnParams.NumTables; i++ {
 		server.TableDBs[i].Server.SetGaloisKeys(args.TableDBGaloisKeys[i])
