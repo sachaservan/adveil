@@ -206,12 +206,13 @@ func (server *Server) buildKNNDataStructure() {
 		server.NumProcs,
 	)
 
+	// TODO: this is where actual data would be used
+	_, db := sealpir.InitRandomDB(server.TableParams)
+
 	for t := 0; t < numTables; t++ {
 		wg.Add(1)
 		go func(t int) {
 			defer wg.Done()
-			// TODO: this is where actual data would be used
-			_, db := sealpir.InitRandomDB(server.TableParams)
 			mu.Lock()
 			server.TableDBs[t] = db
 			mu.Unlock()

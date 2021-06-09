@@ -72,10 +72,12 @@ func (server *Server) TerminateSession(args *api.TerminateSessionArgs, reply *ap
 	server.Killed = true
 
 	server.AdDb.Server.Free()
+	server.TableDBs[0].Server.Free()
 
-	for _, db := range server.TableDBs {
-		db.Server.Free()
-	}
+	// TODO: if using different DBs for each table then free each table
+	// for _, db := range server.TableDBs {
+	// 	db.Server.Free()
+	// }
 
 	return nil
 }
