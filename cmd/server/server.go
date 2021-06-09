@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"math"
 	"net"
 	"sync"
 	"time"
@@ -82,6 +83,15 @@ func (server *Server) PrivateBucketQuery(args *api.BucketQueryArgs, reply *api.B
 
 	wg.Wait()
 
+	idBits := math.Ceil(math.Log2(float64(server.NumAds)))            // bits needed to describe each ad ID
+	bucketSize := idBits * float64(server.KnnParams.BucketSize)       // bits needed per table bucket
+	idMappingBits := server.NumAds * server.KnnParams.NumFeatures * 8 // assume each feature is 1 byte
+
+	// bandwidth required to send: all hash tables + mapping from ID to vector
+	// observe that this is much better than sending the tables with the full vectors in each bucket
+	naiveBandwidth := int64(server.KnnParams.NumTables)*int64(bucketSize) + int64(idMappingBits)
+
+	reply.StatsNaiveBandwidthBytes = naiveBandwidth
 	reply.StatsTotalTimeInMS = time.Now().Sub(start).Milliseconds()
 	log.Printf("[Server]: processed PrivateBucketQuery request in %v ms", reply.StatsTotalTimeInMS)
 

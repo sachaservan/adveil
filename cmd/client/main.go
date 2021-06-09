@@ -68,11 +68,12 @@ func main() {
 
 		if args.EvaluatePrivateANN {
 			start := time.Now()
-			_, serverMS, bandwidthUp, bandwidthDown := client.QueryBuckets()
+			_, serverMS, bandwidthUp, bandwidthDown, bandwidthNaive := client.QueryBuckets()
 
 			if i >= experimentsToDiscard {
 				client.experiment.GetBucketClientMS = append(client.experiment.GetBucketClientMS, time.Now().Sub(start).Milliseconds())
-				client.experiment.GetBucketServerMS = append(client.experiment.GetBucketServerMS, serverMS)
+				client.experiment.GetBucketBandwidthNaiveB = append(client.experiment.GetBucketBandwidthNaiveB, bandwidthNaive)
+				client.experiment.GetBucketBandwidthUpB = append(client.experiment.GetBucketBandwidthUpB, bandwidthUp)
 				client.experiment.GetBucketBandwidthUpB = append(client.experiment.GetBucketBandwidthUpB, bandwidthUp)
 				client.experiment.GetBucketBandwidthDownB = append(client.experiment.GetBucketBandwidthDownB, bandwidthDown)
 

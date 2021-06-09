@@ -31,9 +31,10 @@ type BucketQueryArgs struct {
 
 // BucketQueryResponse response to a bucket PIR query
 type BucketQueryResponse struct {
-	Error              Error
-	Answers            map[int][]*sealpir.Answer
-	StatsTotalTimeInMS int64
+	Error                    Error
+	Answers                  map[int][]*sealpir.Answer
+	StatsNaiveBandwidthBytes int64 // bandwidth of performing naive (send entire database over) PIR
+	StatsTotalTimeInMS       int64
 }
 
 // SetKeysArgs for setting SealPIR galois keys

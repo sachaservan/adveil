@@ -26,6 +26,7 @@ type RuntimeExperiment struct {
 	GetBucketClientMS       []int64 `json:"get_bucket_client_ms"`
 	GetBucketBandwidthDownB []int64 `json:"get_bucket_bandwidth_down_bytes"`
 	GetBucketBandwidthUpB   []int64 `json:"get_bucket_bandwidth_up_bytes"`
+	GetBucketBandwidthNaiveB []int64 `json:"get_bucket_bandwidth_naive_bytes"`
 	GetAdServerMS           []int64 `json:"get_ad_server_ms"`
 	GetAdClientMS           []int64 `json:"get_ad_client_ms"`
 	GetAdBandwidthB         []int64 `json:"get_ad_bandwidth_bytes"`
@@ -210,7 +211,7 @@ func (client *Client) QueryAd(index int64) ([]byte, int64, int64) {
 // QueryBuckets privately queries LSH tables held by the server
 // by first hashing the client's profile vector and then retrieving the corresponding
 // hash from the hash table
-func (client *Client) QueryBuckets() ([][]int, int64, int64, int64) {
+func (client *Client) QueryBuckets() ([][]int, int64, int64, int64, int64) {
 
 	qargs := &api.BucketQueryArgs{}
 	qres := &api.BucketQueryResponse{}
@@ -246,11 +247,12 @@ func (client *Client) QueryBuckets() ([][]int, int64, int64, int64) {
 	// 	c.Recover(qres.Answers[tableIndex][0], offset)
 	// }
 
+	bandwidthNaive := qres.StatsNaiveBandwidthBytes
 	bandwidthUp := getSizeInBytes(qargs)
 	bandwidthDown := getSizeInBytes(qres)
 	serverMS := qres.StatsTotalTimeInMS
 
-	return nil, serverMS, bandwidthUp, bandwidthDown
+	return nil, serverMS,  bandwidthUp, bandwidthDown, bandwidthNaive,
 }
 
 func getSizeInBytes(s interface{}) int64 {
