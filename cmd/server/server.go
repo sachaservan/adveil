@@ -84,12 +84,12 @@ func (server *Server) PrivateBucketQuery(args *api.BucketQueryArgs, reply *api.B
 	wg.Wait()
 
 	idBits := math.Ceil(math.Log2(float64(server.NumAds)))            // bits needed to describe each ad ID
-	bucketSize := idBits * float64(server.KnnParams.BucketSize)       // bits needed per table bucket
+	bucketSizeBits := idBits * float64(server.KnnParams.BucketSize)   // bits needed per table bucket
 	idMappingBits := server.NumAds * server.KnnParams.NumFeatures * 8 // assume each feature is 1 byte
 
 	// bandwidth required to send: all hash tables + mapping from ID to vector
 	// observe that this is much better than sending the tables with the full vectors in each bucket
-	naiveBandwidth := int64(server.KnnParams.NumTables)*int64(bucketSize) + int64(idMappingBits)
+	naiveBandwidth := int64(server.KnnParams.NumTables)*int64(bucketSizeBits)*int64(server.NumAds) + int64(idMappingBits)
 	naiveBandwidth = naiveBandwidth / 8 // bits to bytes
 
 	reply.StatsNaiveBandwidthBytes = naiveBandwidth
