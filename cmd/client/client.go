@@ -218,15 +218,15 @@ func (client *Client) QueryBuckets() ([][]int, int64, int64, int64, int64) {
 
 	// recover the result
 	// TODO: actually use the recovered result(s) to recover the NN
-	// for tableIndex := 0; tableIndex < client.sessionParams.NumTables; tableIndex++ {
+	for tableIndex := 0; tableIndex < client.sessionParams.NumTables; tableIndex++ {
 
-	// 	h := client.tableHashFunctions[tableIndex]
-	// 	elemIndex := h.Digest(client.profile).Int64()
+		h := client.tableHashFunctions[tableIndex]
+		elemIndex := h.Digest(client.profile).Int64()
 
-	// 	c := client.tablePIRClients[tableIndex]
-	// 	offset := c.GetFVOffset(elemIndex)
-	// 	c.Recover(qres.Answers[tableIndex][0], offset)
-	// }
+		c := client.tablePIRClient
+		offset := c.GetFVOffset(elemIndex)
+		c.Recover(qres.Answers[tableIndex][0], offset)
+	}
 
 	bandwidthNaive := qres.StatsNaiveBandwidthBytes
 	bandwidthUp := getSizeInBytes(qargs)
