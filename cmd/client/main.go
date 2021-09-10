@@ -23,9 +23,7 @@ var args struct {
 	SecurityBits        int    `default:"1024"` // e.g., 1024 RSA security; 128 for secret-sharing security
 	ExperimentNumTrials int    `default:"1"`    // number of times to run this experiment configuration
 	ExperimentSaveFile  string `default:"output.json"`
-	EvaluatePrivateANN  bool   `default:"false"` // run ANN search protocol
-	EvaluateAdRetrieval bool   `default:"false"` // retrieve an ad using PIR
-	AutoCloseClient     bool   `default:"true"`  // close client when done
+	AutoCloseClient     bool   `default:"true"` // close client when done
 }
 
 func main() {
@@ -42,9 +40,6 @@ func main() {
 	// init experiment
 	cli.Experiment.GetBucketServerMS = make([]int64, 0)
 	cli.Experiment.GetBucketClientMS = make([]int64, 0)
-	cli.Experiment.GetAdServerMS = make([]int64, 0)
-	cli.Experiment.GetAdClientMS = make([]int64, 0)
-	cli.Experiment.PrivateGetAdDPFServerMS = make([]int64, 0)
 
 	log.Printf("[Client]: waiting for server to initialize \n")
 
@@ -66,40 +61,17 @@ func main() {
 	experimentsToDiscard := 2 // discard first couple experiments which are always slower due to server warmup
 	for i := 0; i < args.ExperimentNumTrials+experimentsToDiscard; i++ {
 
-		if args.EvaluatePrivateANN {
-			start := time.Now()
-			_, serverMS, bandwidthUp, bandwidthDown, bandwidthNaive := cli.QueryBuckets()
+		start := time.Now()
+		_, serverMS, bandwidthUp, bandwidthDown, bandwidthNaive := cli.QueryBuckets()
 
-			if i >= experimentsToDiscard {
-				cli.Experiment.GetBucketClientMS = append(cli.Experiment.GetBucketClientMS, time.Now().Sub(start).Milliseconds())
-				cli.Experiment.GetBucketServerMS = append(cli.Experiment.GetBucketServerMS, serverMS)
-				cli.Experiment.GetBucketBandwidthNaiveB = append(cli.Experiment.GetBucketBandwidthNaiveB, bandwidthNaive)
-				cli.Experiment.GetBucketBandwidthUpB = append(cli.Experiment.GetBucketBandwidthUpB, bandwidthUp)
-				cli.Experiment.GetBucketBandwidthDownB = append(cli.Experiment.GetBucketBandwidthDownB, bandwidthDown)
+		if i >= experimentsToDiscard {
+			cli.Experiment.GetBucketClientMS = append(cli.Experiment.GetBucketClientMS, time.Now().Sub(start).Milliseconds())
+			cli.Experiment.GetBucketServerMS = append(cli.Experiment.GetBucketServerMS, serverMS)
+			cli.Experiment.GetBucketBandwidthNaiveB = append(cli.Experiment.GetBucketBandwidthNaiveB, bandwidthNaive)
+			cli.Experiment.GetBucketBandwidthUpB = append(cli.Experiment.GetBucketBandwidthUpB, bandwidthUp)
+			cli.Experiment.GetBucketBandwidthDownB = append(cli.Experiment.GetBucketBandwidthDownB, bandwidthDown)
 
-				log.Printf("[Client]: bucket query took %v seconds\n", time.Now().Sub(start).Seconds())
-			}
-		}
-
-		if args.EvaluateAdRetrieval {
-			start := time.Now()
-			_, serverMS, serverDPFMS, bandwidth := cli.PrivateQueryAd(0)
-
-			if i >= experimentsToDiscard {
-				cli.Experiment.PrivateGetAdClientMS = append(cli.Experiment.PrivateGetAdClientMS, time.Now().Sub(start).Milliseconds())
-				cli.Experiment.PrivateGetAdServerMS = append(cli.Experiment.PrivateGetAdServerMS, serverMS)
-				cli.Experiment.PrivateGetAdBandwidthB = append(cli.Experiment.PrivateGetAdBandwidthB, bandwidth)
-				cli.Experiment.PrivateGetAdDPFServerMS = append(cli.Experiment.PrivateGetAdDPFServerMS, serverDPFMS)
-				log.Printf("[Client]: private ad query took %v seconds\n", time.Now().Sub(start).Seconds())
-
-				start = time.Now()
-				_, serverMS, bandwidth = cli.QueryAd(0)
-				cli.Experiment.GetAdClientMS = append(cli.Experiment.GetAdClientMS, time.Now().Sub(start).Milliseconds())
-				cli.Experiment.GetAdServerMS = append(cli.Experiment.GetAdServerMS, serverMS)
-				cli.Experiment.GetAdBandwidthB = append(cli.Experiment.GetAdBandwidthB, bandwidth)
-
-				log.Printf("[Client]: non-private ad query took %v seconds\n", time.Now().Sub(start).Seconds())
-			}
+			log.Printf("[Client]: bucket query took %v seconds\n", time.Now().Sub(start).Seconds())
 		}
 
 		if i >= experimentsToDiscard {

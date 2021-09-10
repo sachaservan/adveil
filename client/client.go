@@ -26,9 +26,6 @@ type RuntimeExperiment struct {
 	GetBucketBandwidthDownB  []int64 `json:"get_bucket_bandwidth_down_bytes"`
 	GetBucketBandwidthUpB    []int64 `json:"get_bucket_bandwidth_up_bytes"`
 	GetBucketBandwidthNaiveB []int64 `json:"get_bucket_bandwidth_naive_bytes"`
-	GetAdServerMS            []int64 `json:"get_ad_server_ms"`
-	GetAdClientMS            []int64 `json:"get_ad_client_ms"`
-	GetAdBandwidthB          []int64 `json:"get_ad_bandwidth_bytes"`
 	PrivateGetAdServerMS     []int64 `json:"private_get_ad_server_ms"`
 	PrivateGetAdDPFServerMS  []int64 `json:"private_get_ad_dpf_server_ms"`
 	PrivateGetAdClientMS     []int64 `json:"private_get_ad_client_ms"`

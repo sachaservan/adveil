@@ -41,11 +41,11 @@ The experiment script iterates through a parameters and initializes the server w
 Each client run starts a new experiment under the specified parameters and saves it to a JSON file. 
 Therefore, to cycle through all experiments, we re-run the client many times (e.g., 100). 
 ```
-bash scripts/run_client.sh
+bash run_client.sh --brokerhost localhost --brokerport 8000 --trials 10 --autoclose
 ```
 or cycle through all experiments at once:
 ```
-for run in {1..100}; do bash run_client.sh; sleep 60; done
+bash clicycle.sh --brokerhost localhost --brokerport 8000 --trials 10 --autoclose
 ```
 
 All results as saved as ```.json``` files (one per experiment) in the ```results`` directory.
