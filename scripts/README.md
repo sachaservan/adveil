@@ -1,7 +1,7 @@
 # Running the AdVeil server (Broker)
 
 Note: due to the C++ binding for SealPIR, run the server executable using ```adveil/scripts/run_server.sh```.
-The executable expects ```../../C/libsealwrapper.a``` to be the SealPIR library. 
+The executable (```cmd/server/server```) expects ```../C/libsealwrapper.a``` to be the SealPIR library. 
 
 ### Running the Broker server
 ```
@@ -29,29 +29,15 @@ bash scripts/run_client.sh
 ```
 
 
-## Reproducing the experiments 
-
-### Targeting and Delivery server benchmarks
-
-On the Broker machine we can either run the delivery or the targeting experiments. 
-
-Delivery experiment:
+## Reproducing the targeting experiments 
 ```
-bash experiment1.sh 
+bash targeting_params.sh 
     --port 8001 \
-    --numprocs 10
-```
-
-
-Targeting experiment:
-```
-bash experiment2.sh 
-    --port 8001 \
-    --numprocs 10
+    --numprocs 1
 ```
  
-In both cases, the client triggers the start of the experiment on the server.
-Each experiment script iterates through a parameters and initializes the server with the params. 
+The client triggers the start of the experiment on the server.
+The experiment script iterates through a parameters and initializes the server with the params. 
 Each client run starts a new experiment under the specified parameters and saves it to a JSON file. 
 Therefore, to cycle through all experiments, we re-run the client many times (e.g., 100). 
 ```

@@ -3,7 +3,7 @@
 # Runs the server on each config for evaluating performance of targeting with different number of hash tables 
 #
 # example usage: 
-#     bash experiment2.sh --port 8000 ---numprocs 1 
+#     bash targeting_params.sh --port 8000 ---numprocs 1 
 #
 # Note: actual db size is 2^{dbsize}
 for dbsize in 13 15 16 17 18 19 20 21
