@@ -43,10 +43,6 @@ type Client struct {
 	TableNumBuckets    map[int]int         // number of hash buckets in each table
 	TableHashFunctions map[int]*anns.LSH   // LSH functions used to query tables
 
-	AdPIRParams *sealpir.Params     // SealPIR params for the ad database
-	AdPIRClient *sealpir.Client     // client used to query ad database
-	AdPIRKeys   *sealpir.GaloisKeys // ad database SealPIR keys
-
 	// client's profile feature vector
 	Profile    *vec.Vec
 	Experiment *RuntimeExperiment
@@ -88,11 +84,6 @@ func (client *Client) InitSession() {
 		panic("no table PIR params provided")
 	}
 
-	// SealPIR ad database client and keys
-	adC := sealpir.InitClient(sealpir.DeserializeParams(res.AdPIRParams), 0)
-	client.AdPIRKeys = adC.GenGaloisKeys()
-	client.AdPIRClient = adC
-
 	client.SessionParams = &api.SessionParameters{
 		SessionID:   res.SessionID,
 		NumFeatures: res.NumFeatures,
@@ -115,7 +106,6 @@ func (client *Client) SendPIRKeys() {
 	args := &api.SetKeysArgs{}
 	res := &api.SetKeysResponse{}
 
-	args.AdDBGaloisKeys = client.AdPIRKeys
 	args.TableDBGaloisKeys = client.TablePIRKeys
 
 	if !client.call("Server.SetPIRKeys", &args, &res) {
@@ -133,49 +123,7 @@ func (client *Client) TerminateSessions() {
 		panic("failed to make RPC call")
 	}
 
-	client.AdPIRClient.Free()
 	client.TablePIRClient.Free()
-
-}
-
-// PrivateQueryAd privately retrieves the ad at the index
-func (client *Client) PrivateQueryAd(index int64) ([]byte, int64, int64, int64) {
-
-	args := &api.AdQueryArgs{}
-	res := &api.AdQueryResponse{}
-
-	c := client.AdPIRClient
-	idx := c.GetFVIndex(index)
-	offset := c.GetFVOffset(idx)
-	query := c.GenQuery(idx)
-
-	args.Query = query
-
-	if !client.call("Server.PrivateAdQuery", &args, &res) {
-		panic("failed to make RPC call")
-	}
-
-	// recover the result
-	c.Recover(res.Answer[0], offset)
-
-	bandwidth := getSizeInBytes(args) + getSizeInBytes(res)
-	return nil, res.StatsTotalTimeInMS, res.StatsTotalTimeInMS, bandwidth
-}
-
-// QueryAd retrieves the ad at the index with no privacy
-func (client *Client) QueryAd(index int64) ([]byte, int64, int64) {
-
-	args := &api.AdQueryArgs{}
-	res := &api.AdQueryResponse{}
-
-	args.Index = index
-	if !client.call("Server.AdQuery", &args, &res) {
-		panic("failed to make RPC call")
-	}
-
-	bandwidth := getSizeInBytes(args) + getSizeInBytes(res)
-
-	return nil, res.StatsTotalTimeInMS, bandwidth
 
 }
 
