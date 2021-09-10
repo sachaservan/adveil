@@ -58,7 +58,7 @@ if  [ -z "${TRIALS}" ] || [ -z "${PORT}" ] || [ -z "${HOST}" ]; then
 fi
 
 # build the client 
-go build -o ./client ./
+go build -o ../cmd/client/ ../cmd/client/ 
 
 # add the boolean flags
 boolargs=()
@@ -76,7 +76,7 @@ fi
 BrokerHost=${HOST}
 BrokerPort=${PORT}
 ExperimentNumTrials=${TRIALS}
-ExperimentSaveFile="../../results/experiment${RANDOM}.json"
+ExperimentSaveFile="../results/experiment${RANDOM}${RANDOM}.json"
 
 echo 'Broker IP addr: ' ${HOST}':'${PORT}
 echo 'Num trials:     ' ${ExperimentNumTrials}
@@ -84,7 +84,7 @@ echo 'Flags:          ' ${boolargs[@]}
 echo 'Saving to       ' ${ExperimentSaveFile}
 
 # run the experiemnts with the specified parameters 
-./client \
+../cmd/client/client \
     --experimentsavefile ${ExperimentSaveFile} \
     --serveraddr ${BrokerHost} \
     --serverport ${BrokerPort} \

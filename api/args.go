@@ -2,7 +2,7 @@ package api
 
 import (
 	"github.com/sachaservan/adveil/anns"
-	"github.com/sachaservan/adveil/cmd/sealpir"
+	"github.com/sachaservan/adveil/sealpir"
 )
 
 // Error is provided as a response to API queries

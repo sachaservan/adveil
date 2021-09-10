@@ -1,12 +1,12 @@
-package main
+package server
 
 import (
 	"crypto/rand"
 	"log"
 	"math/big"
 
-	"github.com/sachaservan/adveil/cmd/api"
-	"github.com/sachaservan/adveil/cmd/sealpir"
+	"github.com/sachaservan/adveil/api"
+	"github.com/sachaservan/adveil/sealpir"
 )
 
 // ClientSession stores session info for a client request
@@ -25,7 +25,7 @@ type InitSessionFromServerResponse struct {
 }
 
 // InitSession initializes a new KNN query session for the client
-func (server *Server) InitSession(args api.InitSessionArgs, reply *api.InitSessionResponse) error {
+func (serv *Server) InitSession(args api.InitSessionArgs, reply *api.InitSessionResponse) error {
 
 	log.Printf("[Server]: received request to InitSession")
 
@@ -37,42 +37,39 @@ func (server *Server) InitSession(args api.InitSessionArgs, reply *api.InitSessi
 		sessionID: sessionID,
 	}
 
-	server.Sessions[sessionID] = clientSession
+	serv.Sessions[sessionID] = clientSession
 
 	reply.SessionID = sessionID
-	reply.NumFeatures = server.KnnParams.NumFeatures
-	reply.AdPIRParams = sealpir.SerializeParams(server.AdDb.Server.Params)
-	reply.AdSizeKB = server.AdSize
-	reply.NumAds = server.NumAds
-
-	if server.ANNS {
-		reply.NumTables = server.Knn.NumTables()
-		reply.TablePIRParams = sealpir.SerializeParams(server.TableParams)
-		reply.TableHashFunctions = server.Knn.Hashes
-	}
+	reply.NumFeatures = serv.KnnParams.NumFeatures
+	reply.AdPIRParams = sealpir.SerializeParams(serv.AdDb.Server.Params)
+	reply.AdSizeKB = serv.AdSize
+	reply.NumAds = serv.NumAds
+	reply.NumTables = serv.Knn.NumTables()
+	reply.TablePIRParams = sealpir.SerializeParams(serv.TableParams)
+	reply.TableHashFunctions = serv.Knn.Hashes
 
 	return nil
 }
 
-func (server *Server) SetPIRKeys(args api.SetKeysArgs, reply *api.SetKeysResponse) error {
+func (serv *Server) SetPIRKeys(args api.SetKeysArgs, reply *api.SetKeysResponse) error {
 
 	log.Printf("[Server]: received request to SetPIRKeys")
 
-	server.AdDb.Server.SetGaloisKeys(args.AdDBGaloisKeys)
+	serv.AdDb.Server.SetGaloisKeys(args.AdDBGaloisKeys)
 
-	for i := 0; i < server.KnnParams.NumTables; i++ {
-		server.TableDBs[i].Server.SetGaloisKeys(args.TableDBGaloisKeys)
+	for i := 0; i < serv.KnnParams.NumTables; i++ {
+		serv.TableDBs[i].Server.SetGaloisKeys(args.TableDBGaloisKeys)
 	}
 
 	return nil
 }
 
 // TerminateSession kills the server
-func (server *Server) TerminateSession(args *api.TerminateSessionArgs, reply *api.TerminateSessionResponse) error {
-	server.Killed = true
+func (serv *Server) TerminateSession(args *api.TerminateSessionArgs, reply *api.TerminateSessionResponse) error {
+	serv.Killed = true
 
-	server.AdDb.Server.Free()
-	server.TableDBs[0].Server.Free()
+	// serv.AdDb.Server.Free()
+	// serv.TableDBs[0].Server.Free()
 
 	// TODO: if using different DBs for each table then free each table
 	// for _, db := range server.TableDBs {

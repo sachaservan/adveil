@@ -1,6 +1,6 @@
 #!/bin/bash
 
-usage() { echo "Usage: $0 [-numads <log number of ads>] [--size <ad size in KB>] [--port <port>] [--numfeatures <dim of feature vectors>] [--numtables <number of tables>] [--numprocs <max num processors>] [--noanns]" 1>&2; exit 1; }
+usage() { echo "Usage: $0 [-numads <log number of ads>] [--size <ad size in KB>] [--port <port>] [--numfeatures <dim of feature vectors>] [--numtables <number of tables>] [--numprocs <max num processors>]" 1>&2; exit 1; }
 
 POSITIONAL=()
 while [[ $# -gt 0 ]]
@@ -56,23 +56,15 @@ if  [ -z "${NUMADS}" ] || [ -z "${SIZE}" ] || [ -z "${PORT}" ] || [ -z "${NUMFEA
     usage
 fi
 
-boolargs=()
-if [ "$NOANNS" = true ]; then 
-    NOANNS=true
-    boolargs+=('--noanns')
-else
-    NOANNS=false
-fi
 
 echo 'Number of Ads:    ' $((2**${NUMADS}))
 echo 'Ad size (B):      ' ${SIZE}
 echo 'Num Tables:       ' ${NUMTABLES}
 echo 'Num Features:     ' ${NUMFEATURES}
-echo 'Build ANNS?:      ' ${!NOANNS}
 echo 'DB Parallelism:   ' ${NUMPROCS}
 
 # build the server 
-go build -o ./server ./ 
+go build -o ../cmd/server ../cmd/server/
 
 # configure experiment 
 NumAds=$((2**${NUMADS})) # number of ads in total 
@@ -93,7 +85,7 @@ NumProcs=${NUMPROCS}
 
 echo 'Running server on port:' ${PORT}
 
-./server \
+../cmd/server/server \
     --numads ${NumAds} \
     --adsizebytes ${AdSizeBytes} \
     --numfeatures ${NumFeatures} \
@@ -103,7 +95,5 @@ echo 'Running server on port:' ${PORT}
     --numprojections ${NumProjections} \
     --projectionwidth ${ProjectionWidth} \
     --numprocs ${NumProcs} \
-    --port ${Port} \
-    ${boolargs[@]}
-
+    --port ${Port}
 

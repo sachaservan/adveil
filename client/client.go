@@ -1,4 +1,4 @@
-package main
+package client
 
 import (
 	"bytes"
@@ -6,11 +6,10 @@ import (
 	"fmt"
 	"log"
 	"net/rpc"
-	"sync"
 
 	"github.com/sachaservan/adveil/anns"
-	"github.com/sachaservan/adveil/cmd/api"
-	"github.com/sachaservan/adveil/cmd/sealpir"
+	"github.com/sachaservan/adveil/api"
+	"github.com/sachaservan/adveil/sealpir"
 
 	"github.com/sachaservan/vec"
 )
@@ -40,27 +39,25 @@ const BrokerServerID int = 0
 
 // Client is used to store all relevant client information
 type Client struct {
-	serverAddr    string
-	serverPort    string
-	sessionParams *api.SessionParameters
+	ServerAddr    string
+	ServerPort    string
+	SessionParams *api.SessionParameters
 
 	// SealPIR related
 	// NOTE: "client" here refers to the PIR client in SealPIR
 	// and is a bridge between Go and C++ code
-	tablePIRClient     *sealpir.Client     // clients used to query each tables
-	tablePIRKeys       *sealpir.GaloisKeys // keys used to query each hash table
-	tableNumBuckets    map[int]int         // number of hash buckets in each table
-	tableHashFunctions map[int]*anns.LSH   // LSH functions used to query tables
+	TablePIRClient     *sealpir.Client     // clients used to query each tables
+	TablePIRKeys       *sealpir.GaloisKeys // keys used to query each hash table
+	TableNumBuckets    map[int]int         // number of hash buckets in each table
+	TableHashFunctions map[int]*anns.LSH   // LSH functions used to query tables
 
-	adPIRParams *sealpir.Params     // SealPIR params for the ad database
-	adPIRClient *sealpir.Client     // client used to query ad database
-	adPIRKeys   *sealpir.GaloisKeys // ad database SealPIR keys
+	AdPIRParams *sealpir.Params     // SealPIR params for the ad database
+	AdPIRClient *sealpir.Client     // client used to query ad database
+	AdPIRKeys   *sealpir.GaloisKeys // ad database SealPIR keys
 
 	// client's profile feature vector
-	profile    *vec.Vec
-	experiment *RuntimeExperiment
-
-	mu sync.Mutex
+	Profile    *vec.Vec
+	Experiment *RuntimeExperiment
 }
 
 // WaitForExperimentStart completes once the servers are ready
@@ -90,19 +87,21 @@ func (client *Client) InitSession() {
 		c := sealpir.InitClient(sealpir.DeserializeParams(res.TablePIRParams), 0)
 		keys := c.GenGaloisKeys()
 
-		client.tablePIRClient = c
-		client.tablePIRKeys = keys
+		client.TablePIRClient = c
+		client.TablePIRKeys = keys
 
-		client.tableNumBuckets = res.TableNumBuckets
-		client.tableHashFunctions = res.TableHashFunctions
+		client.TableNumBuckets = res.TableNumBuckets
+		client.TableHashFunctions = res.TableHashFunctions
+	} else {
+		panic("no table PIR params provided")
 	}
 
 	// SealPIR ad database client and keys
 	adC := sealpir.InitClient(sealpir.DeserializeParams(res.AdPIRParams), 0)
-	client.adPIRKeys = adC.GenGaloisKeys()
-	client.adPIRClient = adC
+	client.AdPIRKeys = adC.GenGaloisKeys()
+	client.AdPIRClient = adC
 
-	client.sessionParams = &api.SessionParameters{
+	client.SessionParams = &api.SessionParameters{
 		SessionID:   res.SessionID,
 		NumFeatures: res.NumFeatures,
 		NumTables:   res.NumTables,
@@ -111,13 +110,13 @@ func (client *Client) InitSession() {
 
 	// TODO: this is kind of a hack that is only ok for experiments
 	// gen profile here once the client knows how many features the server is running
-	client.profile = vec.NewRandomVec(res.NumFeatures, -50, 50)
+	client.Profile = vec.NewRandomVec(res.NumFeatures, -50, 50)
 
 	// init the experiment
-	client.experiment.NumAds = res.NumAds
-	client.experiment.AdSizeKB = res.AdSizeKB
-	client.experiment.NumFeatures = res.NumFeatures
-	client.experiment.NumTables = res.NumTables
+	client.Experiment.NumAds = res.NumAds
+	client.Experiment.AdSizeKB = res.AdSizeKB
+	client.Experiment.NumFeatures = res.NumFeatures
+	client.Experiment.NumTables = res.NumTables
 }
 
 func (client *Client) SendPIRKeys() {
@@ -125,8 +124,8 @@ func (client *Client) SendPIRKeys() {
 	args := &api.SetKeysArgs{}
 	res := &api.SetKeysResponse{}
 
-	args.AdDBGaloisKeys = client.adPIRKeys
-	args.TableDBGaloisKeys = client.tablePIRKeys
+	args.AdDBGaloisKeys = client.AdPIRKeys
+	args.TableDBGaloisKeys = client.TablePIRKeys
 
 	if !client.call("Server.SetPIRKeys", &args, &res) {
 		panic("failed to make RPC call")
@@ -143,8 +142,8 @@ func (client *Client) TerminateSessions() {
 		panic("failed to make RPC call")
 	}
 
-	client.adPIRClient.Free()
-	client.tablePIRClient.Free()
+	client.AdPIRClient.Free()
+	client.TablePIRClient.Free()
 
 }
 
@@ -154,7 +153,7 @@ func (client *Client) PrivateQueryAd(index int64) ([]byte, int64, int64, int64) 
 	args := &api.AdQueryArgs{}
 	res := &api.AdQueryResponse{}
 
-	c := client.adPIRClient
+	c := client.AdPIRClient
 	idx := c.GetFVIndex(index)
 	offset := c.GetFVOffset(idx)
 	query := c.GenQuery(idx)
@@ -200,12 +199,12 @@ func (client *Client) QueryBuckets() ([][]int, int64, int64, int64, int64) {
 	// query each hash table for the bucket that collides with the
 	// client's profile feature vector under the server-provided LSH function
 	qargs.Queries = make(map[int]*sealpir.Query)
-	for tableIndex := 0; tableIndex < client.sessionParams.NumTables; tableIndex++ {
+	for tableIndex := 0; tableIndex < client.SessionParams.NumTables; tableIndex++ {
 
-		h := client.tableHashFunctions[tableIndex]
-		elemIndex := h.Digest(client.profile).Int64()
+		h := client.TableHashFunctions[tableIndex]
+		elemIndex := h.Digest(client.Profile).Int64()
 
-		c := client.tablePIRClient
+		c := client.TablePIRClient
 		index := c.GetFVIndex(elemIndex)
 		query := c.GenQuery(index)
 
@@ -218,12 +217,12 @@ func (client *Client) QueryBuckets() ([][]int, int64, int64, int64, int64) {
 
 	// recover the result
 	// TODO: actually use the recovered result(s) to recover the NN
-	for tableIndex := 0; tableIndex < client.sessionParams.NumTables; tableIndex++ {
+	for tableIndex := 0; tableIndex < client.SessionParams.NumTables; tableIndex++ {
 
-		h := client.tableHashFunctions[tableIndex]
-		elemIndex := h.Digest(client.profile).Int64()
+		h := client.TableHashFunctions[tableIndex]
+		elemIndex := h.Digest(client.Profile).Int64()
 
-		c := client.tablePIRClient
+		c := client.TablePIRClient
 		offset := c.GetFVOffset(elemIndex)
 		c.Recover(qres.Answers[tableIndex][0], offset)
 	}
@@ -250,7 +249,7 @@ func getSizeInBytes(s interface{}) int64 {
 // send an RPC request to the master, wait for the response
 func (client *Client) call(rpcname string, args interface{}, reply interface{}) bool {
 
-	cli, err := rpc.DialHTTP("tcp", client.serverAddr+":"+client.serverPort)
+	cli, err := rpc.DialHTTP("tcp", client.ServerAddr+":"+client.ServerPort)
 	if err != nil {
 		log.Fatal("dialing:", err)
 	}

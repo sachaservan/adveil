@@ -11,9 +11,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/sachaservan/adveil/anns"
-
 	"github.com/alexflint/go-arg"
+	"github.com/sachaservan/adveil/anns"
+	"github.com/sachaservan/adveil/client"
 )
 
 // command-line arguments to run the server
@@ -34,48 +34,48 @@ func main() {
 
 	arg.MustParse(&args)
 
-	client := &Client{}
-	client.serverAddr = args.ServerAddr
-	client.serverPort = args.ServerPort
-	client.experiment = &RuntimeExperiment{}
+	cli := &client.Client{}
+	cli.ServerAddr = args.ServerAddr
+	cli.ServerPort = args.ServerPort
+	cli.Experiment = &client.RuntimeExperiment{}
 
 	// init experiment
-	client.experiment.GetBucketServerMS = make([]int64, 0)
-	client.experiment.GetBucketClientMS = make([]int64, 0)
-	client.experiment.GetAdServerMS = make([]int64, 0)
-	client.experiment.GetAdClientMS = make([]int64, 0)
-	client.experiment.PrivateGetAdDPFServerMS = make([]int64, 0)
+	cli.Experiment.GetBucketServerMS = make([]int64, 0)
+	cli.Experiment.GetBucketClientMS = make([]int64, 0)
+	cli.Experiment.GetAdServerMS = make([]int64, 0)
+	cli.Experiment.GetAdClientMS = make([]int64, 0)
+	cli.Experiment.PrivateGetAdDPFServerMS = make([]int64, 0)
 
 	log.Printf("[Client]: waiting for server to initialize \n")
 
 	// wait for the server(s) to finish initializing
-	client.WaitForExperimentStart()
+	cli.WaitForExperimentStart()
 
 	log.Printf("[Client]: starting experiment \n")
 
 	log.Printf("[Client]: initializing session \n")
 
-	client.InitSession()
+	cli.InitSession()
 
 	log.Printf("[Client]: sending PIR keys to the server \n")
 
-	client.SendPIRKeys()
+	cli.SendPIRKeys()
 
-	log.Printf("[Client]: session initialized (SID = %v)\n", client.sessionParams.SessionID)
+	log.Printf("[Client]: session initialized (SID = %v)\n", cli.SessionParams.SessionID)
 
 	experimentsToDiscard := 2 // discard first couple experiments which are always slower due to server warmup
 	for i := 0; i < args.ExperimentNumTrials+experimentsToDiscard; i++ {
 
 		if args.EvaluatePrivateANN {
 			start := time.Now()
-			_, serverMS, bandwidthUp, bandwidthDown, bandwidthNaive := client.QueryBuckets()
+			_, serverMS, bandwidthUp, bandwidthDown, bandwidthNaive := cli.QueryBuckets()
 
 			if i >= experimentsToDiscard {
-				client.experiment.GetBucketClientMS = append(client.experiment.GetBucketClientMS, time.Now().Sub(start).Milliseconds())
-				client.experiment.GetBucketServerMS = append(client.experiment.GetBucketServerMS, serverMS)
-				client.experiment.GetBucketBandwidthNaiveB = append(client.experiment.GetBucketBandwidthNaiveB, bandwidthNaive)
-				client.experiment.GetBucketBandwidthUpB = append(client.experiment.GetBucketBandwidthUpB, bandwidthUp)
-				client.experiment.GetBucketBandwidthDownB = append(client.experiment.GetBucketBandwidthDownB, bandwidthDown)
+				cli.Experiment.GetBucketClientMS = append(cli.Experiment.GetBucketClientMS, time.Now().Sub(start).Milliseconds())
+				cli.Experiment.GetBucketServerMS = append(cli.Experiment.GetBucketServerMS, serverMS)
+				cli.Experiment.GetBucketBandwidthNaiveB = append(cli.Experiment.GetBucketBandwidthNaiveB, bandwidthNaive)
+				cli.Experiment.GetBucketBandwidthUpB = append(cli.Experiment.GetBucketBandwidthUpB, bandwidthUp)
+				cli.Experiment.GetBucketBandwidthDownB = append(cli.Experiment.GetBucketBandwidthDownB, bandwidthDown)
 
 				log.Printf("[Client]: bucket query took %v seconds\n", time.Now().Sub(start).Seconds())
 			}
@@ -83,20 +83,20 @@ func main() {
 
 		if args.EvaluateAdRetrieval {
 			start := time.Now()
-			_, serverMS, serverDPFMS, bandwidth := client.PrivateQueryAd(0)
+			_, serverMS, serverDPFMS, bandwidth := cli.PrivateQueryAd(0)
 
 			if i >= experimentsToDiscard {
-				client.experiment.PrivateGetAdClientMS = append(client.experiment.PrivateGetAdClientMS, time.Now().Sub(start).Milliseconds())
-				client.experiment.PrivateGetAdServerMS = append(client.experiment.PrivateGetAdServerMS, serverMS)
-				client.experiment.PrivateGetAdBandwidthB = append(client.experiment.PrivateGetAdBandwidthB, bandwidth)
-				client.experiment.PrivateGetAdDPFServerMS = append(client.experiment.PrivateGetAdDPFServerMS, serverDPFMS)
+				cli.Experiment.PrivateGetAdClientMS = append(cli.Experiment.PrivateGetAdClientMS, time.Now().Sub(start).Milliseconds())
+				cli.Experiment.PrivateGetAdServerMS = append(cli.Experiment.PrivateGetAdServerMS, serverMS)
+				cli.Experiment.PrivateGetAdBandwidthB = append(cli.Experiment.PrivateGetAdBandwidthB, bandwidth)
+				cli.Experiment.PrivateGetAdDPFServerMS = append(cli.Experiment.PrivateGetAdDPFServerMS, serverDPFMS)
 				log.Printf("[Client]: private ad query took %v seconds\n", time.Now().Sub(start).Seconds())
 
 				start = time.Now()
-				_, serverMS, bandwidth = client.QueryAd(0)
-				client.experiment.GetAdClientMS = append(client.experiment.GetAdClientMS, time.Now().Sub(start).Milliseconds())
-				client.experiment.GetAdServerMS = append(client.experiment.GetAdServerMS, serverMS)
-				client.experiment.GetAdBandwidthB = append(client.experiment.GetAdBandwidthB, bandwidth)
+				_, serverMS, bandwidth = cli.QueryAd(0)
+				cli.Experiment.GetAdClientMS = append(cli.Experiment.GetAdClientMS, time.Now().Sub(start).Milliseconds())
+				cli.Experiment.GetAdServerMS = append(cli.Experiment.GetAdServerMS, serverMS)
+				cli.Experiment.GetAdBandwidthB = append(cli.Experiment.GetAdBandwidthB, bandwidth)
 
 				log.Printf("[Client]: non-private ad query took %v seconds\n", time.Now().Sub(start).Seconds())
 			}
@@ -111,7 +111,7 @@ func main() {
 	}
 
 	// write the result of the evalaution to the specified file
-	experimentJSON, _ := json.MarshalIndent(client.experiment, "", " ")
+	experimentJSON, _ := json.MarshalIndent(cli.Experiment, "", " ")
 	ioutil.WriteFile(args.ExperimentSaveFile, experimentJSON, 0644)
 
 	// prevent client from closing until user input
@@ -122,7 +122,7 @@ func main() {
 	}
 
 	// terminate the client's session on the server
-	client.TerminateSessions()
+	cli.TerminateSessions()
 }
 
 func randomPrime(bits int) *big.Int {

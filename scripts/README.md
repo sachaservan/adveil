@@ -1,12 +1,11 @@
 # Running the AdVeil server (Broker)
 
-Note: due to the C++ binding for SealPIR, the server executable from the ```adveil/cmd/server``` directory.
-Specifically, the executable expects ```../../C/libsealwrapper.a``` to be the SealPIR library. 
+Note: due to the C++ binding for SealPIR, run the server executable using ```adveil/scripts/run_server.sh```.
+The executable expects ```../../C/libsealwrapper.a``` to be the SealPIR library. 
 
 ### Running the Broker server
 ```
-cd adveil/cmd/server/
-bash scripts/run.sh 
+bash scripts/run_server.sh 
     --numads 15 \
     --size 32000 \
     --port 8000 \
@@ -16,6 +15,20 @@ bash scripts/run.sh
     --numprocs 10 
 ```
 
+## Running the AdVeil client
+The client is used to run different experiments. 
+Currently, the client is configured to:
+1) query the ANNS data structure held by the server
+2) retrieve an ad from the server (either via PIR or directly with no privacy)
+
+First, configure ```run_client.sh``` with the Broker's IP address. 
+
+Then run the client:
+```
+bash scripts/run_client.sh
+```
+
+
 ## Reproducing the experiments 
 
 ### Targeting and Delivery server benchmarks
@@ -24,8 +37,7 @@ On the Broker machine we can either run the delivery or the targeting experiment
 
 Delivery experiment:
 ```
-cd adveil/cmd/server/
-bash scripts/experiment1.sh 
+bash experiment1.sh 
     --port 8001 \
     --numprocs 10
 ```
@@ -33,8 +45,7 @@ bash scripts/experiment1.sh
 
 Targeting experiment:
 ```
-cd adveil/cmd/server/
-bash scripts/experiment2.sh 
+bash experiment2.sh 
     --port 8001 \
     --numprocs 10
 ```
@@ -44,26 +55,12 @@ Each experiment script iterates through a parameters and initializes the server 
 Each client run starts a new experiment under the specified parameters and saves it to a JSON file. 
 Therefore, to cycle through all experiments, we re-run the client many times (e.g., 100). 
 ```
-cd adveil/cmd/client
-bash scripts/run.sh
+bash scripts/run_client.sh
 ```
 or cycle through all experiments at once:
 ```
-for run in {1..100}; do bash run.sh; sleep 60; done
+for run in {1..100}; do bash run_client.sh; sleep 60; done
 ```
 
-This saves a ```.json``` file in the ```adveil/cmd/client``` directory (one per experiment).
-Use ```adveil/cmd/concat_exp.py``` to merge multiple files into one ```.json``` array file. 
-
-
-
-### Metrics recovery
-
-On the Broker machine:
-```
-cd adveil/cmd/server/
-bash scripts/experiment3.sh \ 
-    --port 8000 \
-    --numprocs 10 \
-    --primary \
-```
+All results as saved as ```.json``` files (one per experiment) in the ```results`` directory.
+Use ```concat.py``` to merge multiple files into one ```.json``` array file. 

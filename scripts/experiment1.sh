@@ -3,8 +3,7 @@
 # Runs the server on each config for evaluating performance of ad retrieval through PIR.
 #
 # example usage: 
-#     cd ~/go/src/adveil/cmd/client
-#     bash scripts/experiment1.sh  --port 8000 --numprocs 1 
+#     bash experiment1.sh  --port 8000 --numprocs 1 
 #
 # Run the server on each dataset size and ad size 
 # Note: actual db size is 2^{dbsize}
@@ -14,6 +13,6 @@ do
     do
       # 0 for most parameters because --noanns flag is set
       # "$@" contains all parameters that are passed to the script (and do not change between experiments)
-      bash scripts/run.sh --numads $dbsize --size $adsize --numfeatures 0 --numtables 0 --bucketsize 0 --noanns --numprocs 5 "$@" 
+      bash run_server.sh --numads $dbsize --size $adsize --numfeatures 0 --numtables 0 --bucketsize 0 --noanns --numprocs 5 "$@" 
    done
 done

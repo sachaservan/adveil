@@ -3,9 +3,9 @@
 package sealpir
 
 // #cgo CFLAGS: -I"/usr/local/include"
-// #cgo LDFLAGS: ./../../C/libsealwrapper.a -lstdc++ -lm -lseal
+// #cgo LDFLAGS: ./../C/libsealwrapper.a -lstdc++ -lm -lseal
 // #include <stdlib.h>
-// #include "../../C/wrapper.h"
+// #include "./../C/wrapper.h"
 import "C"
 import (
 	"math"

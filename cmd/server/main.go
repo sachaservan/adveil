@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/sachaservan/adveil/anns"
-	"github.com/sachaservan/adveil/token"
+	"github.com/sachaservan/adveil/server"
 
 	"github.com/alexflint/go-arg"
 )
@@ -37,8 +37,6 @@ func main() {
 		// database parameters
 		NumAds      int `default:"10000"`
 		AdSizeBytes int `default:"1000"`
-
-		NoANNS bool `default:"false"`
 
 		// knn parameters
 		NumFeatures     int `default:"50"`
@@ -73,55 +71,52 @@ func main() {
 	params.HashBytes = 4
 
 	// make the server struct
-	server := &Server{
-		Sessions:  make(map[int64]*ClientSession),
+	serv := &server.Server{
+		Sessions:  make(map[int64]*server.ClientSession),
 		KnnParams: params,
 		Ready:     false,
 		NumAds:    args.NumAds,
 		AdSize:    args.AdSizeBytes,
-		ANNS:      !args.NoANNS,
 		NumProcs:  args.NumProcs,
 	}
 
-	go func(server *Server) {
+	go func(serv *server.Server) {
 		// hack to ensure server starts before this completes
 		time.Sleep(100 * time.Millisecond)
 
-		if server.ANNS {
-			log.Println("[Server]: loading feature vectors")
-			server.loadFeatureVectors(args.NumAds, args.NumFeatures, args.DataMin, args.DataMax)
+		log.Println("[Server]: loading feature vectors")
+		serv.LoadFeatureVectors(args.NumAds, args.NumFeatures, args.DataMin, args.DataMax)
 
-			log.Println("[Server]: building KNN data struct")
-			server.buildKNNDataStructure()
-		}
+		log.Println("[Server]: building KNN data struct")
+		serv.BuildKNNDataStructure()
 
 		log.Println("[Server]: building Ad databases")
-		server.buildAdDatabase()
+		serv.BuildAdDatabase()
 
 		log.Println("[Server]: server is ready")
-		server.Ready = true
+		serv.Ready = true
 
-	}(server)
+	}(serv)
 
 	// start the server in the background
 	// will set ready=true when ready to take API calls
-	go killLoop(server)
-	startServer(server, args.Port)
+	go killLoop(serv)
+	startServer(serv, args.Port)
 }
 
 // kill server when Killed flag set
-func killLoop(server *Server) {
-	for !server.Killed {
+func killLoop(serv *server.Server) {
+	for !serv.Killed {
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	server.Listener.Close()
+	serv.Listener.Close()
 }
 
-func startServer(server *Server, port string) {
+func startServer(serv *server.Server, port string) {
 
 	rpc.HandleHTTP()
-	rpc.RegisterName("Server", server)
+	rpc.RegisterName("Server", serv)
 	listener, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		log.Fatal("listen error:", err)
@@ -129,79 +124,6 @@ func startServer(server *Server, port string) {
 
 	log.Println("[Server]: waiting for clients on port " + port)
 
-	server.Listener = listener
+	serv.Listener = listener
 	http.Serve(listener, nil)
-}
-
-func (server *Server) loadFeatureVectors(dbSize, numFeatures, min, max int) {
-
-	log.Printf("[Server]: generating synthetic dataset of size %v with %v features\n", dbSize, numFeatures)
-
-	// TODO: don't use magic constants?
-	// It doesn't really matter for runtime experiments but a complete system
-	// should use a "real" query from the dataset because this isn't guaranteed to
-	// generate a query that has any neigbors ...
-	var err error
-	dbValues, _, _, err := anns.GenerateRandomDataWithPlantedQueries(
-		dbSize,
-		numFeatures,
-		float64(-50), // min value
-		float64(50),  // max value
-		10,           // num queries
-		10,           // num NN per query
-		anns.EuclideanDistance,
-		20, // max distance to a neighbor
-	)
-
-	if err != nil {
-		panic(err)
-	}
-
-	server.KnnValues = dbValues
-
-}
-
-// for timing purposes only
-func (server *Server) genFakeReportingToken() ([]byte, *token.SignedBlindToken) {
-
-	tokenPk := token.PublicKey{
-		Pks: server.RPk.Pks,
-		Pkr: server.RPk.Pkr,
-	}
-
-	tokenSk := token.SecretKey{
-		Sks: server.RSk.Sks,
-		Skr: server.RSk.Skr,
-	}
-
-	t, T, _, _, err := tokenPk.NewToken()
-	if err != nil {
-		panic(err)
-	}
-
-	W := tokenSk.Sign(T, false)
-	return t, W
-}
-
-// for timing purposes only
-func (server *Server) genFakeReportingPublicMDToken() ([]byte, *token.SignedBlindTokenWithMD) {
-
-	tokenPk := token.PublicKey{
-		Pks: server.RPk.Pks,
-		Pkr: server.RPk.Pkr,
-	}
-
-	tokenSk := token.SecretKey{
-		Sks: server.RSk.Sks,
-		Skr: server.RSk.Skr,
-	}
-
-	md := make([]byte, 4)
-	t, T, _, err := tokenPk.NewPublicMDToken()
-	if err != nil {
-		panic(err)
-	}
-
-	W := tokenSk.PublicMDSign(T, md)
-	return t, W
 }

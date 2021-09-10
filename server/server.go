@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"log"
@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/sachaservan/adveil/anns"
-	"github.com/sachaservan/adveil/cmd/api"
-	"github.com/sachaservan/adveil/cmd/sealpir"
+	"github.com/sachaservan/adveil/api"
+	"github.com/sachaservan/adveil/sealpir"
 	"github.com/sachaservan/adveil/token"
 
 	"github.com/sachaservan/vec"
@@ -30,8 +30,6 @@ type Server struct {
 	AdSize int
 	NumAds int
 
-	ANNS bool // set to false to not build ANNS data structure
-
 	// reporting public/secret keys
 	RPk *token.PublicKey
 	RSk *token.SecretKey
@@ -42,9 +40,9 @@ type Server struct {
 }
 
 // WaitForExperiment is used to signal to a waiting client that the server has finishied initializing
-func (server *Server) WaitForExperiment(args *api.WaitForExperimentArgs, reply *api.WaitForExperimentResponse) error {
+func (serv *Server) WaitForExperiment(args *api.WaitForExperimentArgs, reply *api.WaitForExperimentResponse) error {
 
-	for !server.Ready {
+	for !serv.Ready {
 		time.Sleep(1 * time.Second)
 	}
 
@@ -52,7 +50,7 @@ func (server *Server) WaitForExperiment(args *api.WaitForExperimentArgs, reply *
 }
 
 // PrivateBucketQuery performs a PIR query for the items in the database
-func (server *Server) PrivateBucketQuery(args *api.BucketQueryArgs, reply *api.BucketQueryResponse) error {
+func (serv *Server) PrivateBucketQuery(args *api.BucketQueryArgs, reply *api.BucketQueryResponse) error {
 
 	start := time.Now()
 
@@ -62,14 +60,14 @@ func (server *Server) PrivateBucketQuery(args *api.BucketQueryArgs, reply *api.B
 
 	var wg sync.WaitGroup
 	var mu sync.Mutex
-	for tableIndex := 0; tableIndex < server.KnnParams.NumTables; tableIndex++ {
+	for tableIndex := 0; tableIndex < serv.KnnParams.NumTables; tableIndex++ {
 		wg.Add(1)
 		go func(tableIndex int) {
 			defer wg.Done()
 
 			mu.Lock()
 			query := args.Queries[tableIndex]
-			db := server.TableDBs[tableIndex]
+			db := serv.TableDBs[tableIndex]
 			mu.Unlock()
 
 			res := db.Server.GenAnswer(query)
@@ -83,13 +81,13 @@ func (server *Server) PrivateBucketQuery(args *api.BucketQueryArgs, reply *api.B
 
 	wg.Wait()
 
-	idBits := math.Ceil(math.Log2(float64(server.NumAds)))            // bits needed to describe each ad ID
-	bucketSizeBits := idBits * float64(server.KnnParams.BucketSize)   // bits needed per table bucket
-	idMappingBits := server.NumAds * server.KnnParams.NumFeatures * 8 // assume each feature is 1 byte
+	idBits := math.Ceil(math.Log2(float64(serv.NumAds)))          // bits needed to describe each ad ID
+	bucketSizeBits := idBits * float64(serv.KnnParams.BucketSize) // bits needed per table bucket
+	idMappingBits := serv.NumAds * serv.KnnParams.NumFeatures * 8 // assume each feature is 1 byte
 
 	// bandwidth required to send: all hash tables + mapping from ID to vector
 	// observe that this is much better than sending the tables with the full vectors in each bucket
-	naiveBandwidth := int64(server.KnnParams.NumTables)*int64(bucketSizeBits)*int64(server.NumAds) + int64(idMappingBits)
+	naiveBandwidth := int64(serv.KnnParams.NumTables)*int64(bucketSizeBits)*int64(serv.NumAds) + int64(idMappingBits)
 	naiveBandwidth = naiveBandwidth / 8 // bits to bytes
 
 	reply.StatsNaiveBandwidthBytes = naiveBandwidth
@@ -100,12 +98,12 @@ func (server *Server) PrivateBucketQuery(args *api.BucketQueryArgs, reply *api.B
 }
 
 // PrivateAdQuery performs a PIR query for the items in the database
-func (server *Server) PrivateAdQuery(args *api.AdQueryArgs, reply *api.AdQueryResponse) error {
+func (serv *Server) PrivateAdQuery(args *api.AdQueryArgs, reply *api.AdQueryResponse) error {
 
 	start := time.Now()
 	log.Printf("[Server]: received request to PrivateAdQuery")
 
-	reply.Answer = server.AdDb.Server.GenAnswer(args.Query)
+	reply.Answer = serv.AdDb.Server.GenAnswer(args.Query)
 	reply.StatsTotalTimeInMS = time.Now().Sub(start).Milliseconds()
 
 	log.Printf("[Server]: processed single server PrivateAdQuery request in %v ms", reply.StatsTotalTimeInMS)
@@ -114,39 +112,39 @@ func (server *Server) PrivateAdQuery(args *api.AdQueryArgs, reply *api.AdQueryRe
 }
 
 // AdQuery performs a PIR query for the items in the database
-func (server *Server) AdQuery(args *api.AdQueryArgs, reply *api.AdQueryResponse) error {
+func (serv *Server) AdQuery(args *api.AdQueryArgs, reply *api.AdQueryResponse) error {
 
 	log.Printf("[Server]: received request to AdQuery")
 
-	size := server.AdDb.Server.Params.ItemBytes
+	size := serv.AdDb.Server.Params.ItemBytes
 	idx := int(args.Index)
-	reply.Item = server.AdDb.Bytes[size*idx : size*idx+size]
+	reply.Item = serv.AdDb.Bytes[size*idx : size*idx+size]
 
 	log.Printf("[Server]: processed AdQuery request")
 
 	return nil
 }
 
-func (server *Server) buildAdDatabase() {
+func (serv *Server) BuildAdDatabase() {
 
 	// SealPIR DB containing ad slots
 	params := sealpir.InitParams(
-		server.NumAds,
-		server.AdSize,
+		serv.NumAds,
+		serv.AdSize,
 		sealpir.DefaultSealPolyDegree,
 		sealpir.DefaultSealLogt,
 		sealpir.DefaultSealRecursionDim,
-		server.NumProcs,
+		serv.NumProcs,
 	)
 
 	_, db := sealpir.InitRandomDB(params)
 
-	server.AdDb = db
+	serv.AdDb = db
 }
 
-// buildKNNDataStructure initializes the KNN data structure hash tables
+// BuildKNNDataStructure initializes the KNN data structure hash tables
 // and the SealPIR databases used to privately query them
-func (server *Server) buildKNNDataStructure() {
+func (serv *Server) BuildKNNDataStructure() {
 
 	// TODO: build the PIR databases based on the actual hash tables constructed
 	// by the ANNS data structure.
@@ -159,14 +157,14 @@ func (server *Server) buildKNNDataStructure() {
 	// function which will populate the hash tables.
 
 	// build a new LSH-based ANN data structure for the values
-	knn, err := anns.NewLSHBased(server.KnnParams)
+	knn, err := anns.NewLSHBased(serv.KnnParams)
 	if err != nil {
 		panic(err)
 	}
 
-	server.Knn = knn
-	numTables := server.KnnParams.NumTables
-	numBuckets := int(len(server.KnnValues))
+	serv.Knn = knn
+	numTables := serv.KnnParams.NumTables
+	numBuckets := int(len(serv.KnnValues))
 
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -175,10 +173,10 @@ func (server *Server) buildKNNDataStructure() {
 	// size of each vector is dim * 8 in bits (assuming 8 bits per entry)
 
 	// size of each feature vector
-	vecBits := server.KnnValues[0].Size() * 8 // 1 byte per coordinate
+	vecBits := serv.KnnValues[0].Size() * 8 // 1 byte per coordinate
 
 	// contents of bucket
-	bucketBits := vecBits * server.KnnParams.BucketSize
+	bucketBits := vecBits * serv.KnnParams.BucketSize
 
 	// Vector commitment proof for dictionary keys (assume keys are 1...n)
 	// using bilinear scheme of LY10 requires 48 bytes (@128 bit security)
@@ -189,30 +187,103 @@ func (server *Server) buildKNNDataStructure() {
 	bytesPerBucket := (bucketBits + proofBits) / 8
 
 	// SealPIR databases and params for each hash table
-	server.TableDBs = make(map[int]*sealpir.Database)
+	serv.TableDBs = make(map[int]*sealpir.Database)
 
-	server.TableParams = sealpir.InitParams(
+	serv.TableParams = sealpir.InitParams(
 		numBuckets,
 		bytesPerBucket,
 		sealpir.DefaultSealPolyDegree,
 		sealpir.DefaultSealLogt,
 		sealpir.DefaultSealRecursionDim,
-		server.NumProcs,
+		serv.NumProcs,
 	)
 
 	// TODO: this is where actual data would be used
-	_, db := sealpir.InitRandomDB(server.TableParams)
+	_, db := sealpir.InitRandomDB(serv.TableParams)
 
 	for t := 0; t < numTables; t++ {
 		wg.Add(1)
 		go func(t int) {
 			defer wg.Done()
 			mu.Lock()
-			server.TableDBs[t] = db
+			serv.TableDBs[t] = db
 			mu.Unlock()
 		}(t)
 	}
 	wg.Wait()
+}
+
+func (serv *Server) LoadFeatureVectors(dbSize, numFeatures, min, max int) {
+
+	log.Printf("[Server]: generating synthetic dataset of size %v with %v features\n", dbSize, numFeatures)
+
+	// TODO: don't use magic constants
+	// It doesn't really matter for runtime experiments but a complete system
+	// should use a "real" query from the dataset because this isn't guaranteed to
+	// generate a query that has any neigbors ...
+	var err error
+	dbValues, _, _, err := anns.GenerateRandomDataWithPlantedQueries(
+		dbSize,
+		numFeatures,
+		float64(-50), // min value
+		float64(50),  // max value
+		10,           // num queries
+		10,           // num NN per query
+		anns.EuclideanDistance,
+		20, // max distance to a neighbor
+	)
+
+	if err != nil {
+		panic(err)
+	}
+
+	serv.KnnValues = dbValues
+
+}
+
+// for timing purposes only
+func (serv *Server) GenFakeReportingToken() ([]byte, *token.SignedBlindToken) {
+
+	tokenPk := token.PublicKey{
+		Pks: serv.RPk.Pks,
+		Pkr: serv.RPk.Pkr,
+	}
+
+	tokenSk := token.SecretKey{
+		Sks: serv.RSk.Sks,
+		Skr: serv.RSk.Skr,
+	}
+
+	t, T, _, _, err := tokenPk.NewToken()
+	if err != nil {
+		panic(err)
+	}
+
+	W := tokenSk.Sign(T, false)
+	return t, W
+}
+
+// for timing purposes only
+func (serv *Server) GenFakeReportingPublicMDToken() ([]byte, *token.SignedBlindTokenWithMD) {
+
+	tokenPk := token.PublicKey{
+		Pks: serv.RPk.Pks,
+		Pkr: serv.RPk.Pkr,
+	}
+
+	tokenSk := token.SecretKey{
+		Sks: serv.RSk.Sks,
+		Skr: serv.RSk.Skr,
+	}
+
+	md := make([]byte, 4)
+	t, T, _, err := tokenPk.NewPublicMDToken()
+	if err != nil {
+		panic(err)
+	}
+
+	W := tokenSk.PublicMDSign(T, md)
+	return t, W
 }
 
 func newError(err error) api.Error {
