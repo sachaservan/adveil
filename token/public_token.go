@@ -1,6 +1,7 @@
 package token
 
 import (
+	"bytes"
 	"crypto/hmac"
 	crand "crypto/rand"
 	"crypto/sha256"
@@ -10,9 +11,11 @@ import (
 	"github.com/sachaservan/adveil/crypto"
 )
 
-func (pk *PublicKey) NewPublicMDToken(md []byte) ([]byte, *crypto.Point, []byte, error) {
+// NewPublicMDToken generates a token t, blinded curve point H(t)^{1/u} and blinding factor u.
+// Returns (t, B, u)
+func (pk *PublicKey) NewPublicMDToken() ([]byte, *crypto.Point, []byte, error) {
 
-	token, _, err := crypto.NewRandomPoint()
+	t, _, err := crypto.NewRandomPoint()
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -22,126 +25,134 @@ func (pk *PublicKey) NewPublicMDToken(md []byte) ([]byte, *crypto.Point, []byte,
 		panic(err)
 	}
 
-	// compute H(t||md)
-	data := append(token, md...)
-	T, err := h2cObj.HashToCurve(data)
+	// compute H(t)
+	T, err := h2cObj.HashToCurve(t)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	// P := u^-1(T)
-	P, u := PublicMDBlind(T, md)
-	return token, P, u, nil
-}
-
-// PublicMDBlind generates a multiplicative factor u,
-// and returns (u^-1)(P) along with the random values (u,v)
-func PublicMDBlind(P *crypto.Point, md []byte) (*crypto.Point, []byte) {
-	u, _, err := crypto.RandomCurveScalar(P.Curve, crand.Reader)
+	// T := u^-1(T)
+	u, _, err := crypto.RandomCurveScalar(T.Curve, crand.Reader)
 	if err != nil {
-		return nil, nil
+		panic(err)
 	}
 
 	uInv := new(big.Int).SetBytes(u)
-	uInv.ModInverse(uInv, P.Curve.Params().N) // u^-1
+	uInv.ModInverse(uInv, T.Curve.Params().N) // u^-1
 
-	x, y := P.Curve.ScalarMult(P.X, P.Y, uInv.Bytes()) // (u^-1)P
-	A := &crypto.Point{Curve: P.Curve, X: x, Y: y}
+	x, y := T.Curve.ScalarMult(T.X, T.Y, uInv.Bytes()) // (u^-1)T
+	B := &crypto.Point{Curve: T.Curve, X: x, Y: y}
 
-	return A, u
+	return t, B, u, nil
 }
 
 // PublicMDSign (computed by the verifier) signs a blinded token
 // and compute a DLEQ proof attesting to the validity of the signature
-func (sk *SecretKey) PublicMDSign(P *crypto.Point, md []byte) (*crypto.Point, *crypto.Proof) {
+func (sk *SecretKey) PublicMDSign(B *crypto.Point, md []byte) *SignedBlindTokenWithMD {
 
 	h2cObj, err := crypto.GetDefaultCurveHash()
 	if err != nil {
 		panic(err)
 	}
 
-	// compute H(md)
-	h := hmac.New(sha256.New, []byte(md))
-	// Write Data to it
-	h.Write([]byte(md))
-	d := new(big.Int).SetBytes(h.Sum(nil))
-	d.Mod(d, P.Curve.Params().N) // interpret as field element
-
-	d = sk.Sk // TODO: should be (d + sk) but not sure how to add in the EC field yet;
+	// compute H_3(md)
+	d := new(big.Int).SetBytes(h3(md))
+	d.Mod(d, B.Curve.Params().N) // interpret as field element
+	d.Add(d, sk.Sks)             // compute sk + d
 
 	e := new(big.Int)
-	e.ModInverse(d, P.Curve.Params().N) // e^-1
+	e.ModInverse(d, B.Curve.Params().N) // d^-1
 
-	x, y := sk.Pk.Curve.ScalarBaseMult(e.Bytes())
-	U := &crypto.Point{Curve: P.Curve, X: x, Y: y}
+	x, y := sk.Pks.Curve.ScalarBaseMult(e.Bytes())
+	U := &crypto.Point{Curve: B.Curve, X: x, Y: y} // (g^pk)^(1/d)
 
-	x, y = P.Curve.ScalarMult(P.X, P.Y, e.Bytes())
-	W := &crypto.Point{Curve: P.Curve, X: x, Y: y}
+	x, y = B.Curve.ScalarMult(B.X, B.Y, e.Bytes())
+	W := &crypto.Point{Curve: B.Curve, X: x, Y: y} // B^(1/d)
 
-	G := &crypto.Point{sk.Pk.Curve, P.Curve.Params().Gx, P.Curve.Params().Gy}
-	proof, err := crypto.NewProof(h2cObj.Hash(), G, U, P, W, e)
+	G := &crypto.Point{Curve: sk.Pks.Curve, X: B.Curve.Params().Gx, Y: B.Curve.Params().Gy}
+	proof, err := crypto.NewProof(h2cObj.Hash(), G, U, B, W, e) // TODO: use a different hash function for the proof!
 
 	if err != nil {
 		panic(err)
 	}
 
-	return W, proof
+	return &SignedBlindTokenWithMD{Curve: B.Curve, W: W, MD: md, Proof: proof}
 }
 
 // PublicMDUnblind (computed by the prover) removes the given blinding
 // factor from the signed token
-func (pk *PublicKey) PublicMDUnblind(P *crypto.Point, u []byte, md []byte, proof *crypto.Proof) (*crypto.Point, error) {
-	// compute H(md)
-	h := hmac.New(sha256.New, []byte(md))
-	// Write Data to it
-	h.Write([]byte(md))
-	d := new(big.Int).SetBytes(h.Sum(nil))
-	d.Mod(d, P.Curve.Params().N) // interpret as field element
-
-	// TODO:  check to make sure proof is for the correct values
-	// U := pk.Pk // TODO: should be (dPk) but then should match PublicMDSign
+func (pk *PublicKey) PublicMDUnblind(T *SignedBlindTokenWithMD, t []byte, u []byte) (*SignedTokenWithMD, error) {
 
 	// Verify new proof
 	h2cObj, _ := crypto.GetDefaultCurveHash()
-	if !proof.Verify(h2cObj) {
+	if !T.Proof.Verify(h2cObj) {
 		return nil, errors.New("proof invalid")
 	}
 
-	x, y := P.Curve.ScalarMult(P.X, P.Y, u)
-	W := &crypto.Point{Curve: P.Curve, X: x, Y: y}
+	x, y := T.Curve.ScalarMult(T.W.X, T.W.Y, u)
+	hashdata := make([]byte, 0)
+	hashdata = append(hashdata, T.MD...)
+	hashdata = append(hashdata, t...)
+	hashdata = append(hashdata, x.Bytes()...)
+	hashdata = append(hashdata, y.Bytes()...)
+	z := h2(hashdata)
 
-	return W, nil
+	return &SignedTokenWithMD{Curve: T.Curve, T: t, Z: z, MD: T.MD}, nil
 }
 
-func (sk *SecretKey) PublicMDRedeem(token *SignedToken, md []byte) bool {
+func (sk *SecretKey) PublicMDRedeem(T *SignedTokenWithMD, md []byte) bool {
 
 	h2cObj, err := crypto.GetDefaultCurveHash()
 	if err != nil {
 		panic(err)
 	}
 
-	// compute H(t||md)
-	data := append(token.T, md...)
-	T, err := h2cObj.HashToCurve(data)
-	if err != nil {
-		return false
-	}
-
-	// compute H(md)
-	h := hmac.New(sha256.New, []byte(md))
-	// Write Data to it
-	h.Write([]byte(md))
-	d := new(big.Int).SetBytes(h.Sum(nil))
+	// compute H_3(md)
+	d := new(big.Int).SetBytes(h3(md))
 	d.Mod(d, T.Curve.Params().N) // interpret as field element
-
-	d = sk.Sk // TODO: should be (d + sk) but not sure how to add in the EC field yet;
+	d.Add(d, sk.Sks)             // compute sk + d
 
 	e := new(big.Int)
-	e.ModInverse(d, T.Curve.Params().N) // e^-1
+	e.ModInverse(d, T.Curve.Params().N) // d^-1
 
-	x, y := T.Curve.ScalarMult(T.X, T.Y, e.Bytes())
-	W := &crypto.Point{Curve: T.Curve, X: x, Y: y}
+	// compute H(t)
+	P, err := h2cObj.HashToCurve(T.T)
+	if err != nil {
+		panic(err)
+	}
 
-	// are points equal?
-	return W.X.Cmp(token.W.X) == 0 && W.Y.Cmp(token.W.Y) == 0
+	x, y := P.Curve.ScalarMult(P.X, P.Y, e.Bytes())
+	hashdata := make([]byte, 0)
+	hashdata = append(hashdata, md...)
+	hashdata = append(hashdata, T.T...)
+	hashdata = append(hashdata, x.Bytes()...)
+	hashdata = append(hashdata, y.Bytes()...)
+	z := h2(hashdata)
+
+	// is the result the same?
+	return bytes.Equal(T.Z, z)
+}
+
+func h2(data []byte) []byte {
+	// compute H_3 = SHA(3)
+	// TODO: find a less hacky way to do this
+	hkey := make([]byte, 0)
+	hkey = append(hkey, byte('2'))
+	h := hmac.New(sha256.New, hkey)
+
+	// write data to the hash
+	h.Write([]byte(data))
+	return h.Sum(nil)
+}
+
+func h3(data []byte) []byte {
+	// compute H_3 = SHA(3)
+	// TODO: find a less hacky way to do this
+	hkey := make([]byte, 0)
+	hkey = append(hkey, byte('3'))
+	h := hmac.New(sha256.New, hkey)
+
+	// write data to the hash
+	h.Write([]byte(data))
+	return h.Sum(nil)
 }
