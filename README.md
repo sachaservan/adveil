@@ -34,8 +34,9 @@ sudo make install
 
 2) Compile the SealPIR library in ```adveil/C/```:
 ```
+cd C/ 
 cmake .
-make 
+make -j 
 ```
 
 3) Run the desired experiment! (See next section)
@@ -43,19 +44,35 @@ make
 
 ## Running experiments 
 
-1) On the Broker machine:
+1) On the Broker machine: 
 ```
-cd adveil/cmd/server
-bash scripts/[EXPERIMENT SCRIPT] --port 8000
+bash targeting_params.sh 
+    --port 8000 \
+    --numprocs 1
 ```
-
+ 
 2) On the client machine:
 ```
- cd adveil/cmd/client
- bash scripts/run.sh --brokerhost [BROKER IP ADDR] --brokerport 8000 --trials 5 --targeting --autoclose
+bash run_client.sh --brokerhost localhost --brokerport 8000 --trials 10 --autoclose
+```
+or cycle through all experiments at once:
+```
+bash clicycle.sh --brokerhost localhost --brokerport 8000 --trials 10 --autoclose
 ```
 
+The client triggers the start of the experiment on the server.
+The ```targeting_params.sh``` script iterates through a parameters and initializes the server with the params. 
+Each client run starts a new experiment under the specified parameters and saves it to a JSON file. 
+Therefore, to cycle through all experiments, we re-run the client many times (e.g., 100); this is done automatically using ```clicycle.sh```. 
 Resulting experiment summary will be saved in the ```adveil/results``` directory. 
+
+### Converting the generated files 
+All results as saved as ```.json``` files (one per experiment) in the ```adveil/results`` directory.
+Use ```concat.py``` to merge multiple files into one ```.json``` array file. 
+```
+python concat.py --dir ../results --out ../results/targeting.json
+``` 
+
 
 ## Issues with running on MacOS
 While the code has been tested on MacOS (Big Sur), there is a bug in the cgo interface. 
