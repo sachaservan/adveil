@@ -162,42 +162,46 @@ func (server *Server) loadFeatureVectors(dbSize, numFeatures, min, max int) {
 }
 
 // for timing purposes only
-func (server *Server) genFakeReportingPrivateToken() *token.SignedToken {
+func (server *Server) genFakeReportingToken() ([]byte, *token.SignedBlindToken) {
 
 	tokenPk := token.PublicKey{
-		Pk: server.RPk.Pk,
+		Pks: server.RPk.Pks,
+		Pkr: server.RPk.Pkr,
 	}
 
 	tokenSk := token.SecretKey{
-		Sk: server.RSk.Sk,
+		Sks: server.RSk.Sks,
+		Skr: server.RSk.Skr,
 	}
 
-	t, T, _, _, err := tokenPk.NewPrivateMDToken()
+	t, T, _, _, err := tokenPk.NewToken()
 	if err != nil {
 		panic(err)
 	}
 
-	W := tokenSk.PrivateMDSign(T, false)
-	return &token.SignedToken{T: t, W: W}
+	W := tokenSk.Sign(T, false)
+	return t, W
 }
 
 // for timing purposes only
-func (server *Server) genFakeReportingPublicToken() *token.SignedToken {
+func (server *Server) genFakeReportingPublicMDToken() ([]byte, *token.SignedBlindTokenWithMD) {
 
 	tokenPk := token.PublicKey{
-		Pk: server.RPk.Pk,
+		Pks: server.RPk.Pks,
+		Pkr: server.RPk.Pkr,
 	}
 
 	tokenSk := token.SecretKey{
-		Sk: server.RSk.Sk,
+		Sks: server.RSk.Sks,
+		Skr: server.RSk.Skr,
 	}
 
 	md := make([]byte, 4)
-	t, T, _, err := tokenPk.NewPublicMDToken(md)
+	t, T, _, err := tokenPk.NewPublicMDToken()
 	if err != nil {
 		panic(err)
 	}
 
-	W, proof := tokenSk.PublicMDSign(T, md)
-	return &token.SignedToken{T: t, W: W, Proof: proof}
+	W := tokenSk.PublicMDSign(T, md)
+	return t, W
 }
