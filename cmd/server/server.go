@@ -180,17 +180,10 @@ func (server *Server) buildKNNDataStructure() {
 	// contents of bucket
 	bucketBits := vecBits * server.KnnParams.BucketSize
 
-	// Vector commitment proof for dictionary keys
+	// Vector commitment proof for dictionary keys (assume keys are 1...n)
 	// using bilinear scheme of LY10 requires 48 bytes (@128 bit security)
-	// see https://eprint.iacr.org/2020/419.pdf for details
-	// Trusted setup required to sign all public elements (1 element per key);
-	// This is required solely for efficiency since we don't want the client
-	// to download all public parameters.
-	// In total:
-	// 		48 bytes for proof for the vector commitment over the dictionary keys;
-	//      48 bytes for public params element associated with the dictionary key;
-	//      32 bytes for signature on public params element.
-	proofBits := (48 + 48 + 32) * 8
+	// see https://eprint.iacr.org/2020/419.pdf for details.
+	proofBits := (48) * 8
 
 	// divide by 8 to convert to bytes
 	bytesPerBucket := (bucketBits + proofBits) / 8
