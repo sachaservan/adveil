@@ -26,8 +26,6 @@ type Server struct {
 	TableDBs    map[int]*sealpir.Database // array of databases; one for each hash table
 	TableParams *sealpir.Params           // array of SealPIR params; one for each hash table
 
-	AdDb   *sealpir.Database // database of ads
-	AdSize int
 	NumAds int
 
 	// reporting public/secret keys
@@ -95,51 +93,6 @@ func (serv *Server) PrivateBucketQuery(args *api.BucketQueryArgs, reply *api.Buc
 	log.Printf("[Server]: processed PrivateBucketQuery request in %v ms", reply.StatsTotalTimeInMS)
 
 	return nil
-}
-
-// PrivateAdQuery performs a PIR query for the items in the database
-func (serv *Server) PrivateAdQuery(args *api.AdQueryArgs, reply *api.AdQueryResponse) error {
-
-	start := time.Now()
-	log.Printf("[Server]: received request to PrivateAdQuery")
-
-	reply.Answer = serv.AdDb.Server.GenAnswer(args.Query)
-	reply.StatsTotalTimeInMS = time.Now().Sub(start).Milliseconds()
-
-	log.Printf("[Server]: processed single server PrivateAdQuery request in %v ms", reply.StatsTotalTimeInMS)
-
-	return nil
-}
-
-// AdQuery performs a PIR query for the items in the database
-func (serv *Server) AdQuery(args *api.AdQueryArgs, reply *api.AdQueryResponse) error {
-
-	log.Printf("[Server]: received request to AdQuery")
-
-	size := serv.AdDb.Server.Params.ItemBytes
-	idx := int(args.Index)
-	reply.Item = serv.AdDb.Bytes[size*idx : size*idx+size]
-
-	log.Printf("[Server]: processed AdQuery request")
-
-	return nil
-}
-
-func (serv *Server) BuildAdDatabase() {
-
-	// SealPIR DB containing ad slots
-	params := sealpir.InitParams(
-		serv.NumAds,
-		serv.AdSize,
-		sealpir.DefaultSealPolyDegree,
-		sealpir.DefaultSealLogt,
-		sealpir.DefaultSealRecursionDim,
-		serv.NumProcs,
-	)
-
-	_, db := sealpir.InitRandomDB(params)
-
-	serv.AdDb = db
 }
 
 // BuildKNNDataStructure initializes the KNN data structure hash tables

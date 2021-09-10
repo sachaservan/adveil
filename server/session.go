@@ -41,8 +41,6 @@ func (serv *Server) InitSession(args api.InitSessionArgs, reply *api.InitSession
 
 	reply.SessionID = sessionID
 	reply.NumFeatures = serv.KnnParams.NumFeatures
-	reply.AdPIRParams = sealpir.SerializeParams(serv.AdDb.Server.Params)
-	reply.AdSizeKB = serv.AdSize
 	reply.NumAds = serv.NumAds
 	reply.NumTables = serv.Knn.NumTables()
 	reply.TablePIRParams = sealpir.SerializeParams(serv.TableParams)
@@ -54,8 +52,6 @@ func (serv *Server) InitSession(args api.InitSessionArgs, reply *api.InitSession
 func (serv *Server) SetPIRKeys(args api.SetKeysArgs, reply *api.SetKeysResponse) error {
 
 	log.Printf("[Server]: received request to SetPIRKeys")
-
-	serv.AdDb.Server.SetGaloisKeys(args.AdDBGaloisKeys)
 
 	for i := 0; i < serv.KnnParams.NumTables; i++ {
 		serv.TableDBs[i].Server.SetGaloisKeys(args.TableDBGaloisKeys)

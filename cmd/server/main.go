@@ -76,7 +76,6 @@ func main() {
 		KnnParams: params,
 		Ready:     false,
 		NumAds:    args.NumAds,
-		AdSize:    args.AdSizeBytes,
 		NumProcs:  args.NumProcs,
 	}
 
@@ -89,9 +88,6 @@ func main() {
 
 		log.Println("[Server]: building KNN data struct")
 		serv.BuildKNNDataStructure()
-
-		log.Println("[Server]: building Ad databases")
-		serv.BuildAdDatabase()
 
 		log.Println("[Server]: server is ready")
 		serv.Ready = true

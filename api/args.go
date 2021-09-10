@@ -84,6 +84,5 @@ type SessionParameters struct {
 	SessionID   int64
 	NumFeatures int // number of features in each feature vector
 	NumAds      int // number of ads in total
-	AdSizeKB    int // size of each ad
 	NumTables   int // number of hash tables
 }

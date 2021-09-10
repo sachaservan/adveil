@@ -19,7 +19,6 @@ import (
 type RuntimeExperiment struct {
 	NumAds                   int     `json:"num_ads"`
 	NumFeatures              int     `json:"num_features"`
-	AdSizeKB                 int     `json:"ad_size_kilobytes"`
 	NumTables                int     `json:"num_tables"`
 	GetBucketServerMS        []int64 `json:"get_bucket_server_ms"`
 	GetBucketClientMS        []int64 `json:"get_bucket_client_ms"`
@@ -107,7 +106,6 @@ func (client *Client) InitSession() {
 
 	// init the experiment
 	client.Experiment.NumAds = res.NumAds
-	client.Experiment.AdSizeKB = res.AdSizeKB
 	client.Experiment.NumFeatures = res.NumFeatures
 	client.Experiment.NumTables = res.NumTables
 }
