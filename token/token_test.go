@@ -146,6 +146,25 @@ func BenchmarkPublicMDTokenRedeem(b *testing.B) {
 	}
 }
 
+func BenchmarkTokenUnblind(b *testing.B) {
+
+	curve := elliptic.P256()
+	pk, sk := KeyGen(curve)
+
+	t, uT, u, v, err := pk.NewToken()
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	uW := sk.Sign(uT, true)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		pk.Unblind(uW, t, u, v)
+	}
+
+}
+
 func BenchmarkTokenSign(b *testing.B) {
 
 	curve := elliptic.P256()
