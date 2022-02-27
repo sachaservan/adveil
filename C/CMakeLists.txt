@@ -16,7 +16,7 @@ add_library(sealpir STATIC
   wrapper.cpp
 )
 
-find_package(SEAL 3.5.0 EXACT REQUIRED)
+find_package(SEAL 3.5.1 EXACT REQUIRED)
 
 target_link_libraries(main onionpir SEAL::seal -lm)
 
