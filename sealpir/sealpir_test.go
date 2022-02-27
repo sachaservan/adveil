@@ -2,7 +2,6 @@ package sealpir
 
 import (
 	"crypto/rand"
-	"crypto/sha256"
 	"math"
 	"math/big"
 	"testing"
@@ -152,13 +151,6 @@ func TestFullParallel(t *testing.T) {
 	client.Free()
 	server.Free()
 	params.Free()
-}
-
-func BenchmarkHash(b *testing.B) {
-	var prev [32]byte
-	for i := 0; i < b.N; i++ {
-		prev = sha256.Sum256(prev[:])
-	}
 }
 
 func BenchmarkParallelQuery(b *testing.B) {
