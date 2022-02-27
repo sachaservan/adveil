@@ -6,7 +6,7 @@
 #     bash targeting_params.sh --port 8000 ---numprocs 1 
 #
 # Note: actual db size is 2^{dbsize}
-for dbsize in 13 15 16 17 18 19 20 21
+for dbsize in 20 21
 do
    for numtables in 5 10 20 30
     do

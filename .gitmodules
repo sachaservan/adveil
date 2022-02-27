@@ -1,3 +1,4 @@
-[submodule "Onion-PIR"]
-	path = Onion-PIR
+
+[submodule "C/Onion-PIR"]
+	path = C/Onion-PIR
 	url = https://github.com/sachaservan/Onion-PIR.git
