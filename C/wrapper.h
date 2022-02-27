@@ -1,6 +1,6 @@
 #ifdef __cplusplus
-#include "Onion-PIR/pir_client.hpp"
-#include "Onion-PIR/pir_server.hpp"
+#include "Onion-PIR/pir_client.h"
+#include "Onion-PIR/pir_server.h"
 #include <seal/seal.h>
 
 using namespace std; 
