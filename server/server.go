@@ -136,6 +136,26 @@ func (serv *Server) BuildKNNDataStructure() {
 	// see https://eprint.iacr.org/2020/419.pdf for details.
 	proofBits := (48) * 8
 
+	// Number of multiprobes to retrieve in each hash table
+	// this impacts the number of PIR queries (and communication) but
+	// amortizes the server-side processing cost of retrieving multiple
+	// candidates per table.
+	// By partitioning the table key space, we can query each partition
+	// and retrieve an element from it (if it happens to fall into the partition).
+	// In expectation, ~63% of values queried can be retrieved this way.
+	// We therefore increase the number of table by 1.5x to account for this loss.
+	// see e.g., https://eprint.iacr.org/2021/1157.pdf for more details.
+	multiprobes := 10
+
+	// each partition now becomes its own (smaller) hash table
+	numTables = numTables * multiprobes
+
+	// number of buckets in each partition decreases by the number of multiprobes
+	numBuckets = int(math.Ceil(float64(numBuckets) / float64(multiprobes)))
+
+	// account for missing probes
+	numTables = int(math.Ceil(float64(numTables) * float64(1.5)))
+
 	// divide by 8 to convert to bytes
 	bytesPerBucket := (bucketBits + proofBits) / 8
 
@@ -143,7 +163,7 @@ func (serv *Server) BuildKNNDataStructure() {
 	serv.TableDBs = make(map[int]*sealpir.Database)
 
 	serv.TableParams = sealpir.InitParams(
-		numBuckets,
+		numBuckets, // size of each partition table
 		bytesPerBucket,
 		sealpir.DefaultSealPolyDegree,
 		sealpir.DefaultSealLogt,
