@@ -1,6 +1,6 @@
 #ifdef __cplusplus
-#include "SealPIR/pir_client.hpp"
-#include "SealPIR/pir_server.hpp"
+#include "Onion-PIR/pir_client.hpp"
+#include "Onion-PIR/pir_server.hpp"
 #include <seal/seal.h>
 
 using namespace std; 
@@ -48,10 +48,17 @@ struct ExpandedQuery {
 
 struct SerializedQuery {
     const char *str;
-    uint64_t str_len; 
+    uint64_t str_len;
     uint64_t client_id;
     uint64_t ciphertext_size;
     uint64_t count; 
+};
+
+
+struct SerializedEncSk {
+    const char *str;
+    uint64_t str_len;
+    uint64_t ciphertext_size;
 };
 
 struct SerializedGaloisKeys {

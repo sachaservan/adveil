@@ -45,6 +45,23 @@ void* gen_galois_keys(void *client_wrapper) {
     return ser;
 }
 
+void* get_enc_sk(void *client_wrapper) {
+    struct ClientWrapper *cw = (struct ClientWrapper *)client_wrapper;
+    SerializedEncSk *ser = new SerializedEncSk();
+    GSWCiphertext enc_sk = cw->client->get_enc_sk();
+    string ser_enc_sk = serialize_ciphertexts(enc_sk);
+   
+    std::vector<seal::Ciphertext> size_test;
+    size_test.push_back(enc_sk[0]);
+
+    char *str = new char [ser_enc_sk.length()+1]; 
+    memcpy(str, ser_enc_sk.c_str(), sizeof(char) * (ser_enc_sk.length()+1));
+    ser->str = str;
+    ser->str_len = ser_enc_sk.length();
+    ser->ciphertext_size = serialize_ciphertexts(enc_sk).size();
+    return ser;
+}
+
 uint64_t fv_index(void *client_wrapper, uint64_t elem_index) {
     struct ClientWrapper *cw = (struct ClientWrapper *)client_wrapper;
     uint64_t size_per_item = cw->params->item_bytes;
@@ -67,7 +84,7 @@ uint64_t fv_offset(void *client_wrapper, uint64_t elem_index) {
 
 void* gen_query(void *client_wrapper, uint64_t desiredIndex) {
     struct ClientWrapper *cw = (struct ClientWrapper *)client_wrapper;
-    PirQuery query = cw->client->generate_query(desiredIndex);
+    PirQuery query = cw->client->generate_query_combined(desiredIndex);
     string query_ser = serialize_query(query);
     
     std::vector<seal::Ciphertext> size_test;
@@ -90,7 +107,7 @@ char* recover(void *client_wrapper, void *serialized_answer) {
 
     string str(sa->str, sa->str_len);
     PirReply answer = deserialize_ciphertexts(sa->count, str, sa->ciphertext_size);
-    Plaintext result = cw->client->decode_reply(answer);
+    Plaintext result = cw->client->decrypt_result(answer);
     uint64_t size = ((cw->params->poly_degree * cw->params->logt) / 8);
     uint8_t* elems = new uint8_t[size]; 
     coeffs_to_bytes(cw->params->logt, result, elems, size);
@@ -128,6 +145,7 @@ void* gen_answer(void *server_wrapper, void *serialized_query) {
     struct ServerWrapper *sw = (ServerWrapper *)server_wrapper;
     struct SerializedQuery *sq = (SerializedQuery *)serialized_query;
 
+    server->set_enc_sk(enc_sk);
     string serialized(sq->str, sq->str_len);
     PirQuery query = deserialize_query(
         sw->params->d, 
@@ -136,7 +154,8 @@ void* gen_answer(void *server_wrapper, void *serialized_query) {
         sq->ciphertext_size
     );
 
-    PirReply res = sw->server->generate_reply(query, sq->client_id);
+    SecretKey sk = cw->client->get_decryptor();
+    PirReply res = sw->server->generate_reply_combined(query, 0, sk);
     string ser_ans = serialize_ciphertexts(res);
 
     std::vector<seal::Ciphertext> size_test;
