@@ -48,9 +48,8 @@ struct ExpandedQuery {
 
 struct SerializedQuery {
     const char *str;
-    uint64_t str_len;
-    uint64_t client_id;
-    uint64_t ciphertext_size;
+    uint64_t len_d1;
+    uint64_t len_d2;
     uint64_t count; 
 };
 
@@ -58,13 +57,12 @@ struct SerializedQuery {
 struct SerializedEncSk {
     const char *str;
     uint64_t str_len;
-    uint64_t ciphertext_size;
+    uint64_t len;
 };
 
 struct SerializedGaloisKeys {
     const char *str;
     uint64_t str_len; 
-    uint64_t client_id;
 };
 #endif
 
@@ -86,6 +84,7 @@ extern uint64_t fv_offset(void *client_wrapper, uint64_t index);
 // Server functions 
 extern void* init_server_wrapper(void *params); 
 extern void set_galois_keys(void *server_wrapper, void *serialized_galois_keys);
+extern void set_enc_sk(void *server_wrapper, void *serialized_enc_sk);
 extern void setup_database(void *server_wrapper, char* data);
 extern void* gen_answer(void *server_wrapper, void *serialized_query);
 extern void* gen_expanded_query(void *server_wrapper, void *serialized_query);

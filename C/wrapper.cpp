@@ -128,8 +128,16 @@ void set_galois_keys(void *server_wrapper, void *serialized_galois_keys) {
     struct ServerWrapper *sw = (ServerWrapper *)server_wrapper;
     struct SerializedGaloisKeys *k = (struct SerializedGaloisKeys *) serialized_galois_keys;
     string str(k->str, k->str_len);
-    GaloisKeys *galois_keys = deserialize_galoiskeys(str);
+    GaloisKeys *galois_keys = deserialize_galoiskeys(sw->server->newcontext_, str);
     sw->server->set_galois_key(k->client_id, *galois_keys);
+}
+
+void set_enc_sk(void *server_wrapper, void *serialized_enc_sk) {
+    struct ServerWrapper *sw = (ServerWrapper *)server_wrapper;
+    struct SerializedEncSk *k = (struct SerializedEncSk *) serialized_enc_sk;
+    string str(k->str, k->str_len);
+    GSWCiphertext enc_sk = deserialize_enc_sk(sw->server->newcontext_, k->len, str);
+    sw->server->set_enc_sk(enc_sk);
 }
 
 void setup_database(void *server_wrapper, char* data) {
@@ -145,7 +153,6 @@ void* gen_answer(void *server_wrapper, void *serialized_query) {
     struct ServerWrapper *sw = (ServerWrapper *)server_wrapper;
     struct SerializedQuery *sq = (SerializedQuery *)serialized_query;
 
-    server->set_enc_sk(enc_sk);
     string serialized(sq->str, sq->str_len);
     PirQuery query = deserialize_query(
         sw->params->d, 
