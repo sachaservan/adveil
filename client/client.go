@@ -17,7 +17,7 @@ import (
 // RuntimeExperiment captures all the information needed to
 // evaluate a live deployment
 type RuntimeExperiment struct {
-	NumAds                   int     `json:"num_ads"`
+	NumCategories            int     `json:"num_categories"`
 	NumFeatures              int     `json:"num_features"`
 	NumTables                int     `json:"num_tables"`
 	GetBucketServerMS        []int64 `json:"get_bucket_server_ms"`
@@ -85,10 +85,12 @@ func (client *Client) InitSession() {
 	}
 
 	client.SessionParams = &api.SessionParameters{
-		SessionID:   res.SessionID,
-		NumFeatures: res.NumFeatures,
-		NumTables:   res.NumTables,
-		NumAds:      res.NumAds,
+		SessionID:     res.SessionID,
+		NumFeatures:   res.NumFeatures,
+		NumTables:     res.NumTables,
+		NumCategories: res.NumCategories,
+		NumProbes:     res.NumProbes,
+		NumTableDBs:   res.NumTableDBs,
 	}
 
 	// TODO: this is kind of a hack that is only ok for experiments
@@ -96,7 +98,7 @@ func (client *Client) InitSession() {
 	client.Profile = vec.NewRandomVec(res.NumFeatures, -50, 50)
 
 	// init the experiment
-	client.Experiment.NumAds = res.NumAds
+	client.Experiment.NumCategories = res.NumCategories
 	client.Experiment.NumFeatures = res.NumFeatures
 	client.Experiment.NumTables = res.NumTables
 }
@@ -135,19 +137,51 @@ func (client *Client) QueryBuckets() ([][]int, int64, int64, int64, int64) {
 	qargs := &api.BucketQueryArgs{}
 	qres := &api.BucketQueryResponse{}
 
+	allIndices := make([]int64, 0)
+
 	// query each hash table for the bucket that collides with the
 	// client's profile feature vector under the server-provided LSH function
 	qargs.Queries = make(map[int]*sealpir.Query)
 	for tableIndex := 0; tableIndex < client.SessionParams.NumTables; tableIndex++ {
 
 		h := client.TableHashFunctions[tableIndex]
-		elemIndex := h.Digest(client.Profile).Int64()
+
+		numProbes := client.SessionParams.NumProbes
+		for probeIndex := 0; probeIndex < numProbes; probeIndex++ {
+
+			// simulate LSH-multiprobing perturbation
+			q := client.Profile.Copy()
+			noise := vec.NewRandomVec(client.Profile.Size(), 0, 255)
+			q.Add(noise)
+
+			elemIndex := h.Digest(q).Int64()
+			allIndices = append(allIndices, elemIndex)
+
+			c := client.TablePIRClient
+			index := c.GetFVIndex(elemIndex)
+			query := c.GenQuery(index)
+			qargs.Queries[tableIndex*numProbes+probeIndex] = query
+		}
+	}
+
+	// extra databases introduce to account for partial batch retrieval failures
+	numQueries := client.SessionParams.NumTables * client.SessionParams.NumProbes
+	diff := client.SessionParams.NumTableDBs - numQueries
+	for extra := 0; extra < diff; extra++ {
+
+		// simulate LSH-multiprobing perturbation
+		q := client.Profile.Copy()
+		noise := vec.NewRandomVec(client.Profile.Size(), 0, 255)
+		q.Add(noise)
+
+		h := client.TableHashFunctions[0]
+		elemIndex := h.Digest(q).Int64()
+		allIndices = append(allIndices, elemIndex)
 
 		c := client.TablePIRClient
 		index := c.GetFVIndex(elemIndex)
 		query := c.GenQuery(index)
-
-		qargs.Queries[tableIndex] = query
+		qargs.Queries[numQueries+extra] = query
 	}
 
 	if !client.call("Server.PrivateBucketQuery", &qargs, &qres) {
@@ -156,14 +190,11 @@ func (client *Client) QueryBuckets() ([][]int, int64, int64, int64, int64) {
 
 	// recover the result
 	// TODO: actually use the recovered result(s) to recover the NN
-	for tableIndex := 0; tableIndex < client.SessionParams.NumTables; tableIndex++ {
-
-		h := client.TableHashFunctions[tableIndex]
-		elemIndex := h.Digest(client.Profile).Int64()
-
+	for dbIndex := 0; dbIndex < client.SessionParams.NumTableDBs; dbIndex++ {
+		elemIndex := allIndices[dbIndex]
 		c := client.TablePIRClient
 		offset := c.GetFVOffset(elemIndex)
-		c.Recover(qres.Answers[tableIndex][0], offset)
+		c.Recover(qres.Answers[dbIndex][0], offset)
 	}
 
 	bandwidthNaive := qres.StatsNaiveBandwidthBytes

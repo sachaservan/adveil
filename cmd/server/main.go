@@ -35,12 +35,13 @@ func main() {
 		NumProcs int `default:"40"`
 
 		// database parameters
-		NumAds      int `default:"10000"`
-		AdSizeBytes int `default:"1000"`
+		NumCategories int `default:"10000"`
+		AdSizeBytes   int `default:"1000"`
 
 		// knn parameters
 		NumFeatures     int `default:"50"`
-		NumTables       int `default:"10"`
+		NumTables       int `default:"5"`
+		NumProbes       int `default:"15"`
 		NumProjections  int `default:"5"`
 		DataMin         int `default:"-50"`
 		DataMax         int `default:"50"`
@@ -63,20 +64,21 @@ func main() {
 	params.NumProjections = args.NumProjections
 	params.ProjectionWidth = float64(args.ProjectionWidth)
 	params.NumTables = args.NumTables
+	params.NumProbes = args.NumProbes
 	params.Metric = anns.EuclideanDistance
 
 	// TODO: don't have magic constants
-	params.ApproximationFactor = 2
+	params.ApproximationFactor = 2 // NOT USED
 	params.BucketSize = 1
 	params.HashBytes = 4
 
 	// make the server struct
 	serv := &server.Server{
-		Sessions:  make(map[int64]*server.ClientSession),
-		KnnParams: params,
-		Ready:     false,
-		NumAds:    args.NumAds,
-		NumProcs:  args.NumProcs,
+		Sessions:      make(map[int64]*server.ClientSession),
+		KnnParams:     params,
+		Ready:         false,
+		NumCategories: args.NumCategories,
+		NumProcs:      args.NumProcs,
 	}
 
 	go func(serv *server.Server) {
@@ -84,10 +86,10 @@ func main() {
 		time.Sleep(100 * time.Millisecond)
 
 		log.Println("[Server]: loading feature vectors")
-		serv.LoadFeatureVectors(args.NumAds, args.NumFeatures, args.DataMin, args.DataMax)
+		server.LoadFeatureVectors(serv, args.NumCategories, args.NumFeatures, args.DataMin, args.DataMax)
 
 		log.Println("[Server]: building KNN data struct")
-		serv.BuildKNNDataStructure()
+		server.BuildKNNDataStructure(serv)
 
 		log.Println("[Server]: server is ready")
 		serv.Ready = true

@@ -41,8 +41,10 @@ func (serv *Server) InitSession(args api.InitSessionArgs, reply *api.InitSession
 
 	reply.SessionID = sessionID
 	reply.NumFeatures = serv.KnnParams.NumFeatures
-	reply.NumAds = serv.NumAds
-	reply.NumTables = serv.Knn.NumTables()
+	reply.NumCategories = serv.NumCategories
+	reply.NumTables = serv.KnnParams.NumTables
+	reply.NumProbes = serv.KnnParams.NumProbes
+	reply.NumTableDBs = len(serv.TableDBs)
 	reply.TablePIRParams = sealpir.SerializeParams(serv.TableParams)
 	reply.TableHashFunctions = serv.Knn.Hashes
 

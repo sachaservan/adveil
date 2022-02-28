@@ -40,7 +40,6 @@ type BucketQueryResponse struct {
 // SetKeysArgs for setting SealPIR galois keys
 type SetKeysArgs struct {
 	TableDBGaloisKeys *sealpir.GaloisKeys
-	AdDBGaloisKeys    *sealpir.GaloisKeys
 }
 
 // SetKeysResponse if error occurs
@@ -59,8 +58,6 @@ type InitSessionResponse struct {
 	TableNumBuckets    map[int]int               // number of hash buckets in each table
 	TableHashFunctions map[int]*anns.LSH         // LSH functions used to query tables
 	TablePIRParams     *sealpir.SerializedParams // SealPIR params for each hash table
-
-	AdPIRParams *sealpir.SerializedParams // SealPIR params for the ad database
 
 	StatsTotalTimeInMS int64
 }
@@ -81,8 +78,10 @@ type WaitForExperimentResponse struct{}
 // SessionParameters contains all the metadata information
 // needed for a client to issue PIR queries
 type SessionParameters struct {
-	SessionID   int64
-	NumFeatures int // number of features in each feature vector
-	NumAds      int // number of ads in total
-	NumTables   int // number of hash tables
+	SessionID     int64
+	NumFeatures   int // number of features in each feature vector
+	NumCategories int // number of ads in total
+	NumTables     int // number of hash tables
+	NumProbes     int // number of probes per hash table
+	NumTableDBs   int // number of databases representing hash tables to query
 }

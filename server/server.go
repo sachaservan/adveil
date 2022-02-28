@@ -15,7 +15,7 @@ import (
 	"github.com/sachaservan/vec"
 )
 
-// Server maintains all the necessary server state
+// Server maintains all the necessary state
 type Server struct {
 	Sessions  map[int64]*ClientSession
 	NumProcs  int
@@ -26,7 +26,7 @@ type Server struct {
 	TableDBs    map[int]*sealpir.Database // array of databases; one for each hash table
 	TableParams *sealpir.Params           // array of SealPIR params; one for each hash table
 
-	NumAds int
+	NumCategories int
 
 	// reporting public/secret keys
 	RPk *token.PublicKey
@@ -58,46 +58,46 @@ func (serv *Server) PrivateBucketQuery(args *api.BucketQueryArgs, reply *api.Buc
 
 	var wg sync.WaitGroup
 	var mu sync.Mutex
-	for tableIndex := 0; tableIndex < serv.KnnParams.NumTables; tableIndex++ {
+	for dbIndex := 0; dbIndex < len(serv.TableDBs); dbIndex++ {
 		wg.Add(1)
-		go func(tableIndex int) {
+		go func(dbIndex int) {
 			defer wg.Done()
 
 			mu.Lock()
-			query := args.Queries[tableIndex]
-			db := serv.TableDBs[tableIndex]
+			query := args.Queries[dbIndex]
+			db := serv.TableDBs[dbIndex]
 			mu.Unlock()
 
 			res := db.Server.GenAnswer(query)
 
 			mu.Lock()
-			reply.Answers[tableIndex] = res
+			reply.Answers[dbIndex] = res
 			mu.Unlock()
 
-		}(tableIndex)
+		}(dbIndex)
 	}
 
 	wg.Wait()
 
-	idBits := math.Ceil(math.Log2(float64(serv.NumAds)))          // bits needed to describe each ad ID
-	bucketSizeBits := idBits * float64(serv.KnnParams.BucketSize) // bits needed per table bucket
-	idMappingBits := serv.NumAds * serv.KnnParams.NumFeatures * 8 // assume each feature is 1 byte
+	idBits := math.Ceil(math.Log2(float64(serv.NumCategories)))          // bits needed to describe each ad ID
+	bucketSizeBits := idBits * float64(serv.KnnParams.BucketSize)        // bits needed per table bucket
+	idMappingBits := serv.NumCategories * serv.KnnParams.NumFeatures * 8 // assume each feature is 1 byte
 
 	// bandwidth required to send: all hash tables + mapping from ID to vector
 	// observe that this is much better than sending the tables with the full vectors in each bucket
-	naiveBandwidth := int64(serv.KnnParams.NumTables)*int64(bucketSizeBits)*int64(serv.NumAds) + int64(idMappingBits)
+	naiveBandwidth := int64(serv.KnnParams.NumTables)*int64(bucketSizeBits)*int64(serv.NumCategories) + int64(idMappingBits)
 	naiveBandwidth = naiveBandwidth / 8 // bits to bytes
 
 	reply.StatsNaiveBandwidthBytes = naiveBandwidth
-	reply.StatsTotalTimeInMS = time.Now().Sub(start).Milliseconds()
+	reply.StatsTotalTimeInMS = time.Since(start).Milliseconds()
 	log.Printf("[Server]: processed PrivateBucketQuery request in %v ms", reply.StatsTotalTimeInMS)
 
 	return nil
 }
 
-// BuildKNNDataStructure initializes the KNN data structure hash tables
+// buildKNNDataStructure initializes the KNN data structure hash tables
 // and the SealPIR databases used to privately query them
-func (serv *Server) BuildKNNDataStructure() {
+func BuildKNNDataStructure(serv *Server) {
 
 	// TODO: build the PIR databases based on the actual hash tables constructed
 	// by the ANNS data structure.
@@ -117,6 +117,7 @@ func (serv *Server) BuildKNNDataStructure() {
 
 	serv.Knn = knn
 	numTables := serv.KnnParams.NumTables
+	numProbes := serv.KnnParams.NumProbes
 	numBuckets := int(len(serv.KnnValues))
 
 	var wg sync.WaitGroup
@@ -136,25 +137,19 @@ func (serv *Server) BuildKNNDataStructure() {
 	// see https://eprint.iacr.org/2020/419.pdf for details.
 	proofBits := (48) * 8
 
+	// numProbes
 	// Number of multiprobes to retrieve in each hash table
 	// this impacts the number of PIR queries (and communication) but
 	// amortizes the server-side processing cost of retrieving multiple
 	// candidates per table.
 	// By partitioning the table key space, we can query each partition
 	// and retrieve an element from it (if it happens to fall into the partition).
-	// In expectation, ~63% of values queried can be retrieved this way.
-	// We therefore increase the number of table by 1.5x to account for this loss.
-	// see e.g., https://eprint.iacr.org/2021/1157.pdf for more details.
-	multiprobes := 10
 
 	// each partition now becomes its own (smaller) hash table
-	numTables = numTables * multiprobes
+	numTableDBs := numTables * numProbes
 
 	// number of buckets in each partition decreases by the number of multiprobes
-	numBuckets = int(math.Ceil(float64(numBuckets) / float64(multiprobes)))
-
-	// account for missing probes
-	numTables = int(math.Ceil(float64(numTables) * float64(1.5)))
+	numBuckets = int(math.Ceil(float64(numBuckets) / float64(numProbes)))
 
 	// divide by 8 to convert to bytes
 	bytesPerBucket := (bucketBits + proofBits) / 8
@@ -174,7 +169,7 @@ func (serv *Server) BuildKNNDataStructure() {
 	// TODO: this is where actual data would be used
 	_, db := sealpir.InitRandomDB(serv.TableParams)
 
-	for t := 0; t < numTables; t++ {
+	for t := 0; t < numTableDBs; t++ {
 		wg.Add(1)
 		go func(t int) {
 			defer wg.Done()
@@ -186,7 +181,7 @@ func (serv *Server) BuildKNNDataStructure() {
 	wg.Wait()
 }
 
-func (serv *Server) LoadFeatureVectors(dbSize, numFeatures, min, max int) {
+func LoadFeatureVectors(serv *Server, dbSize, numFeatures, min, max int) {
 
 	log.Printf("[Server]: generating synthetic dataset of size %v with %v features\n", dbSize, numFeatures)
 
@@ -215,7 +210,7 @@ func (serv *Server) LoadFeatureVectors(dbSize, numFeatures, min, max int) {
 }
 
 // for timing purposes only
-func (serv *Server) GenFakeReportingToken() ([]byte, *token.SignedBlindToken) {
+func GenFakeReportingToken(serv *Server) ([]byte, *token.SignedBlindToken) {
 
 	tokenPk := token.PublicKey{
 		Pks: serv.RPk.Pks,
@@ -237,7 +232,7 @@ func (serv *Server) GenFakeReportingToken() ([]byte, *token.SignedBlindToken) {
 }
 
 // for timing purposes only
-func (serv *Server) GenFakeReportingPublicMDToken() ([]byte, *token.SignedBlindTokenWithMD) {
+func GenFakeReportingPublicMDToken(serv *Server) ([]byte, *token.SignedBlindTokenWithMD) {
 
 	tokenPk := token.PublicKey{
 		Pks: serv.RPk.Pks,
@@ -257,11 +252,4 @@ func (serv *Server) GenFakeReportingPublicMDToken() ([]byte, *token.SignedBlindT
 
 	W := tokenSk.PublicMDSign(T, md)
 	return t, W
-}
-
-func newError(err error) api.Error {
-	return api.Error{
-		Msg: err.Error(),
-	}
-
 }
