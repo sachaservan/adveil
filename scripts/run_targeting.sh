@@ -16,6 +16,6 @@ do
         # "$@" contains all parameters that are passed to the script (and do not change between experiments)
         # note: --numprocs should be small because it only affects the table-level parallelization 
         # all table queries are still executed in parallel with one-another (with each query parallelized by --numprocs). 
-        bash run_server.sh --numcat $numcat --size 1 --numfeatures 100 --numtables $numtables --numprobes $NumProbes --bucketsize 1 --numprocs 1 "$@"
+        bash run_server.sh --numcat $numcat --size 1 --numfeatures 50 --numtables $numtables --numprobes $NumProbes --bucketsize 1 --numprocs 1 "$@"
    done
 done
