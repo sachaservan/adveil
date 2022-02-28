@@ -10,6 +10,30 @@ type KNN interface {
 	Query(query *vec.Vec, k int) ([]*vec.Vec, error)
 }
 
+// DistanceMetric specifies the distance LSH should be sensitive to
+type DistanceMetric int
+
+const (
+	// HammingDistance specifies a hamming weight distance metric
+	HammingDistance DistanceMetric = iota
+	// EuclideanDistance specifies a euclidean (l2) distance metric
+	EuclideanDistance
+)
+
+// Table stores a set of hash buckets
+type Table struct {
+	Buckets map[string]map[int]bool // hash table for all buckets per LSH table
+}
+
+// LSHBasedKNN is a data structure that uses GaussianHash to
+// hash a set of points into buckets for nearest neighbor search
+type LSHBasedKNN struct {
+	Params *LSHParams     // parameters used in constructing the data structure
+	Data   []*vec.Vec     // copy of the original data vectors
+	Tables map[int]*Table // array of hash tables storing the data
+	Hashes map[int]*LSH   // hash function for each of the numTables tables
+}
+
 // DistanceFunction returns the distance between p and q according to a distance metric
 type DistanceFunction func(p, q *vec.Vec) float64
 
@@ -17,6 +41,7 @@ type DistanceFunction func(p, q *vec.Vec) float64
 type LSHParams struct {
 	NumFeatures         int            `json:"num_features"`         // number of features in each data point
 	NumTables           int            `json:"num_tables"`           // number of hash tables to construct
+	NumProbes           int            `json:"num_probes"`           // number of probes per hash table
 	NumProjections      int            `json:"num_projections"`      // number of hash functions to compose
 	ApproximationFactor float64        `json:"approximation_factor"` // lsh approx factor
 	ProjectionWidth     float64        `json:"projection_width"`     // width of each hash value (only applies to certain distance metrics)
@@ -40,7 +65,6 @@ func NewLSHBased(params *LSHParams) (*LSHBasedKNN, error) {
 		switch knn.Params.Metric {
 		case EuclideanDistance:
 			knn.Hashes[i] = NewEuclideanLSH(knn.Params.NumFeatures, knn.Params.ProjectionWidth, knn.Params.NumProjections)
-			break
 		}
 	}
 

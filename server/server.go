@@ -181,34 +181,6 @@ func BuildKNNDataStructure(serv *Server) {
 	wg.Wait()
 }
 
-func LoadFeatureVectors(serv *Server, dbSize, numFeatures, min, max int) {
-
-	log.Printf("[Server]: generating synthetic dataset of size %v with %v features\n", dbSize, numFeatures)
-
-	// TODO: don't use magic constants
-	// It doesn't really matter for runtime experiments but a complete system
-	// should use a "real" query from the dataset because this isn't guaranteed to
-	// generate a query that has any neigbors ...
-	var err error
-	dbValues, _, _, err := anns.GenerateRandomDataWithPlantedQueries(
-		dbSize,
-		numFeatures,
-		float64(-50), // min value
-		float64(50),  // max value
-		10,           // num queries
-		10,           // num NN per query
-		anns.EuclideanDistance,
-		20, // max distance to a neighbor
-	)
-
-	if err != nil {
-		panic(err)
-	}
-
-	serv.KnnValues = dbValues
-
-}
-
 // for timing purposes only
 func GenFakeReportingToken(serv *Server) ([]byte, *token.SignedBlindToken) {
 

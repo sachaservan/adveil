@@ -85,10 +85,7 @@ func main() {
 		// hack to ensure server starts before this completes
 		time.Sleep(100 * time.Millisecond)
 
-		log.Println("[Server]: loading feature vectors")
-		server.LoadFeatureVectors(serv, args.NumCategories, args.NumFeatures, args.DataMin, args.DataMax)
-
-		log.Println("[Server]: building KNN data struct")
+		log.Println("[Server]: building fake targeting data struct")
 		server.BuildKNNDataStructure(serv)
 
 		log.Println("[Server]: server is ready")
