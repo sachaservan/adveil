@@ -118,7 +118,7 @@ func BuildKNNDataStructure(serv *Server) {
 	serv.Knn = knn
 	numTables := serv.KnnParams.NumTables
 	numProbes := serv.KnnParams.NumProbes
-	numBuckets := int(len(serv.KnnValues))
+	numBuckets := serv.NumCategories
 
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -127,7 +127,7 @@ func BuildKNNDataStructure(serv *Server) {
 	// size of each vector is dim * 8 in bits (assuming 8 bits per entry)
 
 	// size of each feature vector
-	vecBits := serv.KnnValues[0].Size() * 8 // 1 byte per coordinate
+	vecBits := serv.KnnParams.NumFeatures * 8 // 1 byte per coordinate
 
 	// contents of bucket
 	bucketBits := vecBits * serv.KnnParams.BucketSize

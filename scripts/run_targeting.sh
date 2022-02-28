@@ -8,7 +8,7 @@
 
 NumProbes=5
 # Note: actual db size is 2^{dbsize}
-for numcat in 19 20 21
+for numcat in 14 15 16 17 18 19 20 21
 do
    for numtables in 2 4 8 16
     do
