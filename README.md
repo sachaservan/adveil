@@ -12,13 +12,14 @@
 
 ## Getting everything to run (tested on Ubuntu 20.04.2 LTS)
 
-0) Install dependencies:
-```
-sudo apt-get install build-essential
-sudo apt-get install cmake
-sudo apt-get install libgmp3-dev
-sudo apt-get install golang-go
-```
+|0) Install dependencies (Ubuntu): | 0) Install dependencies (CentOS):|
+|--------------|-----------|
+|```sudo apt-get install build-essential``` |  ```sudo yum groupinstall 'Development Tools'```|
+|```sudo apt-get install cmake```| ```sudo yum install cmake```|
+|```sudo apt-get install libgmp3-dev```| ```sudo yum install gmp-devel```|
+|```sudo apt-get install golang-go```| ```sudo yum install golang```|
+
+
 
 1) Globally install Microsoft SEAL 3.2.0: 
 
@@ -45,7 +46,7 @@ make -j
 
 1) On the Broker machine: 
 ```
-bash targeting_params.sh 
+bash run_targeting.sh 
     --port 8000 \
     --numprocs 1
 ```
