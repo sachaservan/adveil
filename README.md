@@ -2,7 +2,6 @@
 
 # AdVeil Prototype
 
-Implementation for [AdVeil paper](http://adveil.com).
 
 ## Dependencies 
 * [Microsoft SEAL 3.2.0](https://github.com/microsoft/SEAL/releases/tag/v3.2.0)
@@ -87,7 +86,7 @@ The compiler will handle switching between two instances of ```sealpir.go``` to 
 This implementation of AdVeil is intended as a proof-of-concept prototype only! The code was implemented for research purposes and has not been vetted by security experts. As such, no portion of the code should be used in any real-world or production setting!
 
 ## License
-Copyright © 2021 Sacha Servan-Schreiber
+Copyright © 2022 Sacha Servan-Schreiber
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
