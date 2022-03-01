@@ -79,9 +79,11 @@ While the code has been tested on MacOS (Big Sur), there is a bug in the cgo int
 On Linux, ```uint64_t``` is cast as ```C.ulong``` in the Go code which *does not work on Mac* (seems to be a bug?)
 The compiler will handle switching between two instances of ```sealpir.go``` to work around this issue. 
 
+## Evaluating accuracy of the targeting data structure
+Please see [AdVeil Accuracy](https://github.com/sachaservan/adveil-accuracy) for instructions on reproducing the ANN accuracy experiments. 
 
-## Notes
-- Part of the anonymous token code was obtained from the [Privacy Pass implementation](https://github.com/privacypass/challenge-bypass-server). 
+## Acknowledgements 
+* Part of the anonymous token code was obtained from the [Privacy Pass implementation](https://github.com/privacypass/challenge-bypass-server). 
 
 ## Important Warning
 This implementation of AdVeil is intended as a proof-of-concept prototype only! The code was implemented for research purposes and has not been vetted by security experts. As such, no portion of the code should be used in any real-world or production setting!
