@@ -9,6 +9,7 @@ import (
 
 	"github.com/sachaservan/adveil/anns"
 	"github.com/sachaservan/adveil/api"
+	"github.com/sachaservan/adveil/ec"
 	"github.com/sachaservan/adveil/sealpir"
 	"github.com/sachaservan/adveil/token"
 
@@ -29,6 +30,7 @@ type Server struct {
 	NumCategories int
 
 	// reporting public/secret keys
+	EC  *ec.EC
 	RPk *token.PublicKey
 	RSk *token.SecretKey
 
@@ -182,46 +184,27 @@ func BuildKNNDataStructure(serv *Server) {
 }
 
 // for timing purposes only
-func GenFakeReportingToken(serv *Server) ([]byte, *token.SignedBlindToken) {
+func GenFakeReportingToken(serv *Server) (*token.BlindToken, *token.SignedBlindToken) {
 
 	tokenPk := token.PublicKey{
-		Pks: serv.RPk.Pks,
-		Pkr: serv.RPk.Pkr,
+		EC: serv.EC,
+		Pk: serv.RPk.Pk,
 	}
 
 	tokenSk := token.SecretKey{
-		Sks: serv.RSk.Sks,
-		Skr: serv.RSk.Skr,
+		EC: serv.EC,
+		Sk: serv.RSk.Sk,
 	}
 
-	t, T, _, _, err := tokenPk.NewToken()
+	t, err := tokenPk.NewToken()
 	if err != nil {
 		panic(err)
 	}
 
-	W := tokenSk.Sign(T, false)
-	return t, W
-}
-
-// for timing purposes only
-func GenFakeReportingPublicMDToken(serv *Server) ([]byte, *token.SignedBlindTokenWithMD) {
-
-	tokenPk := token.PublicKey{
-		Pks: serv.RPk.Pks,
-		Pkr: serv.RPk.Pkr,
-	}
-
-	tokenSk := token.SecretKey{
-		Sks: serv.RSk.Sks,
-		Skr: serv.RSk.Skr,
-	}
-
-	md := make([]byte, 4)
-	t, T, _, err := tokenPk.NewPublicMDToken()
+	W, err := tokenSk.Sign(t.B)
 	if err != nil {
 		panic(err)
 	}
 
-	W := tokenSk.PublicMDSign(T, md)
 	return t, W
 }

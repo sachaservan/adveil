@@ -2,45 +2,39 @@ package token
 
 import (
 	"crypto/elliptic"
-	crand "crypto/rand"
+	"crypto/rand"
 	"math/big"
 
-	"github.com/sachaservan/adveil/crypto"
+	"github.com/sachaservan/adveil/ec"
 )
 
 type PublicKey struct {
-	Pks *crypto.Point // signing key
-	Pkr *crypto.Point // randomization key
-	H   *crypto.Point
+	EC *ec.EC    // elliptic curve
+	Pk *ec.Point // token signing key
 }
 
 type SecretKey struct {
-	Pks *crypto.Point
-	Pkr *crypto.Point
-	Sks *big.Int
-	Skr *big.Int
+	EC *ec.EC
+	Pk *PublicKey
+	Sk *big.Int
 }
 
-func KeyGen(curve elliptic.Curve) (*PublicKey, *SecretKey) {
-	k, x, y, _ := elliptic.GenerateKey(curve, crand.Reader)
-	Ps := &crypto.Point{curve, x, y}
-	sks := new(big.Int).SetBytes(k)
+func KeyGen(curve elliptic.Curve) (*PublicKey, *SecretKey, error) {
 
-	h2cObj, err := crypto.GetDefaultCurveHash()
+	c := &ec.EC{Curve: curve}
+
+	// generate a new elliptic curve point
+	k, x, y, _ := elliptic.GenerateKey(curve, rand.Reader)
+	X, err := ec.NewPointOnCurve(curve, x, y)
 	if err != nil {
-		panic(err)
-	}
-	H, err := h2cObj.HashToCurve(append(x.Bytes(), y.Bytes()...))
-	if err != nil {
-		panic(err)
+		return nil, nil, err
 	}
 
-	k, x, y, _ = elliptic.GenerateKey(curve, crand.Reader)
-	x, y = curve.ScalarMult(H.X, H.Y, k)
-	Pr := &crypto.Point{curve, x, y}
-	skr := new(big.Int).SetBytes(k)
+	// secret signing (and verification) key
+	ssk := new(big.Int).SetBytes(k)
 
-	pk := &PublicKey{Pks: Ps, Pkr: Pr, H: H}
-	sk := &SecretKey{Pks: Ps, Pkr: Pr, Sks: sks, Skr: skr}
-	return pk, sk
+	pk := &PublicKey{EC: c, Pk: X}
+	sk := &SecretKey{EC: c, Pk: pk, Sk: ssk}
+
+	return pk, sk, nil
 }

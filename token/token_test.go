@@ -1,60 +1,32 @@
 package token
 
 import (
+	"bytes"
 	"crypto/elliptic"
 	_ "crypto/sha256"
+	"encoding/json"
 	"testing"
 )
 
-func TestVanillaTokenProtocol(t *testing.T) {
+func TestTokenProtocol(t *testing.T) {
 
 	curve := elliptic.P256()
-	pk, sk := KeyGen(curve)
+	pk, sk, _ := KeyGen(curve)
 
 	// Client: generate and store (token, bF, bP)
-	token, uT, u, v, err := pk.NewToken()
+	bt, err := pk.NewToken()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Server: sign blinded token
-	uW := sk.Sign(uT, true)
+	sbt, _ := sk.Sign(bt.B)
 
 	// Client: unblind signature
-	W := pk.Unblind(uW, token, u, v)
+	W := pk.Unblind(sbt, bt)
 
 	// Server: redeem unblinded token and signature
-	valid := sk.Redeem(W)
-	if !valid {
-		t.Fatal("failed redemption")
-	}
-}
-
-func TestPublicMDTokenProtocol(t *testing.T) {
-
-	curve := elliptic.P256()
-	pk, sk := KeyGen(curve)
-
-	metadata := make([]byte, 100)
-
-	// Client: generate and store (token, bF, bP)
-	token, uT, u, err := pk.NewPublicMDToken()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Server: sign blinded token
-	uW := sk.PublicMDSign(uT, metadata)
-
-	// Client: unblind signature
-	W, err := pk.PublicMDUnblind(uW, token, u)
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Server: redeem unblinded token and signature
-	valid := sk.PublicMDRedeem(W, metadata)
+	valid, _ := sk.Redeem(W)
 	if !valid {
 		t.Fatal("failed redemption")
 	}
@@ -63,104 +35,29 @@ func TestPublicMDTokenProtocol(t *testing.T) {
 func BenchmarkGenToken(b *testing.B) {
 
 	curve := elliptic.P256()
-	pk, _ := KeyGen(curve)
+	pk, _, _ := KeyGen(curve)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		pk.NewToken()
-	}
-
-}
-
-func BenchmarkGenPublicMDToken(b *testing.B) {
-
-	curve := elliptic.P256()
-	pk, _ := KeyGen(curve)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		pk.NewPublicMDToken()
-	}
-}
-
-func BenchmarkPublicMDTokenUnblind(b *testing.B) {
-
-	curve := elliptic.P256()
-	pk, sk := KeyGen(curve)
-
-	metadata := make([]byte, 100)
-	t, uT, u, _ := pk.NewPublicMDToken()
-
-	// Server: sign blinded token
-	uW := sk.PublicMDSign(uT, metadata)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		pk.PublicMDUnblind(uW, t, u)
-	}
-}
-
-func BenchmarkPublicMDTokenSign(b *testing.B) {
-
-	curve := elliptic.P256()
-	pk, sk := KeyGen(curve)
-
-	metadata := make([]byte, 100)
-
-	_, uT, _, err := pk.NewPublicMDToken()
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		sk.PublicMDSign(uT, metadata)
-	}
-
-}
-
-func BenchmarkPublicMDTokenRedeem(b *testing.B) {
-
-	curve := elliptic.P256()
-	pk, sk := KeyGen(curve)
-
-	metadata := make([]byte, 100)
-
-	// Client: generate and store (token, bF, bP)
-	t, uT, u, err := pk.NewPublicMDToken()
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	uW := sk.PublicMDSign(uT, metadata)
-
-	W, err := pk.PublicMDUnblind(uW, t, u)
-
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		sk.PublicMDRedeem(W, metadata)
 	}
 }
 
 func BenchmarkTokenUnblind(b *testing.B) {
 
 	curve := elliptic.P256()
-	pk, sk := KeyGen(curve)
+	pk, sk, _ := KeyGen(curve)
 
-	t, uT, u, v, err := pk.NewToken()
+	bt, err := pk.NewToken()
 	if err != nil {
 		b.Fatal(err)
 	}
 
-	uW := sk.Sign(uT, true)
+	sbt, _ := sk.Sign(bt.B)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		pk.Unblind(uW, t, u, v)
+		pk.Unblind(sbt, bt)
 	}
 
 }
@@ -168,16 +65,16 @@ func BenchmarkTokenUnblind(b *testing.B) {
 func BenchmarkTokenSign(b *testing.B) {
 
 	curve := elliptic.P256()
-	pk, sk := KeyGen(curve)
+	pk, sk, _ := KeyGen(curve)
 
-	_, uT, _, _, err := pk.NewToken()
+	bt, err := pk.NewToken()
 	if err != nil {
 		b.Fatal(err)
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		sk.Sign(uT, true)
+		sk.Sign(bt.B)
 	}
 
 }
@@ -185,19 +82,48 @@ func BenchmarkTokenSign(b *testing.B) {
 func BenchmarkTokenRedeem(b *testing.B) {
 
 	curve := elliptic.P256()
-	pk, sk := KeyGen(curve)
+	pk, sk, _ := KeyGen(curve)
 
-	t, uT, u, v, err := pk.NewToken()
+	bt, err := pk.NewToken()
 	if err != nil {
 		b.Fatal(err)
 	}
 
-	uW := sk.Sign(uT, true)
+	sbt, _ := sk.Sign(bt.B)
 
-	W := pk.Unblind(uW, t, u, v)
+	W := pk.Unblind(sbt, bt)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		sk.Redeem(W)
 	}
+}
+
+func TestMarshall(t *testing.T) {
+
+	curve := elliptic.P256()
+	pk, _, _ := KeyGen(curve)
+
+	bt, err := pk.NewToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	data, err := json.Marshal(bt)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	R := &BlindToken{}
+	err = json.Unmarshal(data, R)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !pk.EC.IsEqual(bt.B, R.B) || bt.U.Cmp(R.U) != 0 || bt.V.Cmp(R.V) != 0 || bytes.Compare(bt.T, R.T) != 0 {
+		t.Fatalf("recovered point is not valid")
+	}
+
 }
