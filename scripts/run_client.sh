@@ -1,13 +1,5 @@
 #!/bin/bash
 
-# Command line arguments to run the client: 
-# ServerAddrs: array of server IP addresses; if only one addr provided, assumes single server setting 
-# ServerPorts: array of server ports 
-# AutoCloseClient: if YES then kills the client once all requests havve completed 
-# EvaluatePrivateANN: if YES then performs a private ANN retrieval of nearest neighbors to the clients profile 
-# EvaluateAdRetrieval: if YES then does a PIR query to retrieve an ad from the server 
-# ExperimentNumETrials: number of times to run each experiment 
-
 usage() { echo "Usage: $0 [--brokerhost <broker server addr>] [--brokerport <broker server port>] [--trials <num trials>] [--autoclose]" 1>&2; exit 1; }
 
 POSITIONAL=()

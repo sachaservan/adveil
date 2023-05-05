@@ -1,6 +1,6 @@
 #!/bin/bash
 
-usage() { echo "Usage: $0 [-numcat <log number of ads>] [--size <ad size in KB>] [--port <port>] [--numfeatures <dim of feature vectors>] [--numtables <number of tables>] [--numprobes <number of multiprobes>] [--numprocs <max num processors>]" 1>&2; exit 1; }
+usage() { echo "Usage: $0 [-numcat <log number of ads>] [--port <port>] [--numfeatures <dim of feature vectors>] [--numtables <number of tables>] [--numprobes <number of multiprobes>] [--numprocs <max num processors>]" 1>&2; exit 1; }
 
 POSITIONAL=()
 while [[ $# -gt 0 ]]
@@ -10,11 +10,6 @@ key="$1"
 case $key in
     --numcat)
     NUMCAT="$2"
-    shift # past argument
-    shift # past value
-    ;;
-    --size)
-    SIZE="$2"
     shift # past argument
     shift # past value
     ;;
@@ -57,13 +52,12 @@ set -- "${POSITIONAL[@]}" # restore positional parameters
 
 
 shift $((OPTIND-1))
-if  [ -z "${NUMCAT}" ] || [ -z "${SIZE}" ] || [ -z "${PORT}" ] || [ -z "${NUMFEATURES}" ] || [ -z "${NUMTABLES}" ] || [ -z "${NUMPROBES}" ]; then
+if  [ -z "${NUMCAT}" ] || [ -z "${PORT}" ] || [ -z "${NUMFEATURES}" ] || [ -z "${NUMTABLES}" ] || [ -z "${NUMPROBES}" ]; then
     usage
 fi
 
 
 echo 'Number of categories:    ' $((2**${NUMCAT}))
-echo 'Ad size (B):      ' ${SIZE}
 echo 'Num Tables:       ' ${NUMTABLES}
 echo 'Num Probes:       ' ${NUMPROBES}
 echo 'Num Features:     ' ${NUMFEATURES}
@@ -74,7 +68,6 @@ go build -o ../cmd/server ../cmd/server/
 
 # configure experiment 
 NumCategories=$((2**${NUMCAT})) # number of categories in total 
-AdSizeBytes=${SIZE}
 NumFeatures=${NUMFEATURES} # feature vector dimention for each ad 
 DataMin=-50 # feature vector min value 
 DataMax=50 # resp. max value 
@@ -94,7 +87,6 @@ echo 'Running server on port:' ${PORT}
 
 ../cmd/server/server \
     --numcategories ${NumCategories} \
-    --adsizebytes ${AdSizeBytes} \
     --numfeatures ${NumFeatures} \
     --datamin ${DataMin} \
     --datamax ${DataMax} \
